@@ -159,7 +159,8 @@
     ScrollTrigger.create({
       trigger: '#contact', start: 'top 70%', end: 'top 20%', scrub: true,
       onUpdate: function (self) {
-        var v = 1 - self.progress * 0.75;
+        /* hand the stage fully back to the globe for the ending */
+        var v = 1 - self.progress;
         canvas.style.opacity = (glOpacity * v).toFixed(3);
       }
     });
