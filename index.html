@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Allocator | An Operating System for the Agent Economy</title>
+  <meta name="description" content="Risk-weighted harnesses for long-horizon agents, and a portfolio-level control layer that allocates budget, autonomy, and verification across a workforce of digital workers.">
+  <meta name="theme-color" content="#060607">
+  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="none" stroke="%23ebe8e0" stroke-width="1.4" opacity="0.6"/><path d="M14 2 A12 12 0 0 1 26 14" fill="none" stroke="%2322d3ee" stroke-width="2.2" stroke-linecap="round"/><circle cx="14" cy="14" r="3" fill="%2322d3ee"/></svg>'>
+
+  <!-- Fonts — Space Grotesk (display) · IBM Plex Sans (body) · Zodiak (credo serif) · Space Mono (labels) -->
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://api.fontshare.com/v2/css?f[]=zodiak@400,500&f[]=zodiak-italic@400,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&family=IBM+Plex+Sans:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Premium libs -->
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1/dist/lenis.min.js"></script>
+  <script src="https://unpkg.com/split-type@0.3.4/umd/index.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Paper grain overlay -->
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- 3D scroll story — fixed WebGL layer behind the sections -->
+  <canvas id="gl" aria-hidden="true"></canvas>
+
+  <!-- Preloader -->
+  <div id="preloader">
+    <div class="pre-inner">
+      <svg width="60" height="60" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <circle cx="14" cy="14" r="12.4" stroke="#ebe8e0" stroke-width="1" opacity="0.5"/>
+        <circle cx="14" cy="14" r="8.2" stroke="#ebe8e0" stroke-width="0.6" opacity="0.16"/>
+        <path d="M14 1.6 A12.4,12.4 0 0,1 26.4 14" stroke="#22d3ee" stroke-width="1.9" stroke-linecap="round"/>
+        <path d="M14 26.4 A12.4,12.4 0 0,1 3.4 8" stroke="#ebe8e0" stroke-width="1" stroke-linecap="round" opacity="0.55"/>
+        <circle cx="14" cy="14" r="4.2" stroke="#ebe8e0" stroke-width="1" opacity="0.9"/>
+        <circle cx="14" cy="14" r="1.6" fill="#22d3ee"/>
+      </svg>
+      <div class="pre-word">Allo<span>cator</span><em>.os</em></div>
+      <div class="pre-bar"><div class="pre-fill"></div></div>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav id="nav">
+    <div class="nav-inner">
+      <a class="nav-logo" href="#" aria-label="Allocator home">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <circle cx="14" cy="14" r="12.4" stroke="#ebe8e0" stroke-width="1" opacity="0.5"/>
+          <path d="M14 1.6 A12.4,12.4 0 0,1 26.4 14" stroke="#22d3ee" stroke-width="1.9" stroke-linecap="round"/>
+          <circle cx="14" cy="14" r="4.2" stroke="#ebe8e0" stroke-width="1" opacity="0.9"/>
+          <circle cx="14" cy="14" r="1.6" fill="#22d3ee"/>
+        </svg>
+        <span class="logo-text">Allo<span class="accent">cator</span><span class="dot">.os</span></span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#shift">Economy</a></li>
+        <li><a href="#research">Research</a></li>
+        <li><a href="#system">System</a></li>
+        <li><a href="#demo">Console</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+      <div class="nav-cta">
+        <a href="https://claude.ai/code/artifact/37f591e4-ef9b-4362-a854-3244aa49cf99" target="_blank" rel="noopener" class="btn-nav">Live Console</a>
+      </div>
+      <button class="nav-burger" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <div class="mobile-menu" id="mobile-menu">
+      <a href="#shift">Economy</a>
+      <a href="#research">Research</a>
+      <a href="#system">System</a>
+      <a href="#demo">Console</a>
+      <a href="#contact">Contact</a>
+      <a href="https://claude.ai/code/artifact/37f591e4-ef9b-4362-a854-3244aa49cf99" target="_blank" rel="noopener" class="cta">Live Console</a>
+    </div>
+  </nav>
+
+  <!-- ═══════════ HERO — full-bleed capital-flow graph ═══════════ -->
+  <section id="hero">
+    <canvas id="flow-canvas" aria-hidden="true"></canvas>
+    <div class="hero-veil" aria-hidden="true"></div>
+
+    <div class="hero-inner wrap">
+      <span class="eyebrow" data-reveal>Risk-weighted harnesses · the agent economy</span>
+      <h1 class="hero-h1" data-split>
+        Spend intelligence <em>where mistakes matter</em>
+      </h1>
+      <p class="hero-sub" data-reveal>
+        Agents can finish small tasks. The open problem is hours-to-days coherence under
+        real budgets. Allocator is an AI CFO for a workforce of digital workers — it routes
+        capital, verification, and autonomy toward <b>verified marginal value</b>, and halts
+        errors before they compound.
+      </p>
+
+      <!-- The five doors -->
+      <div class="hero-ctas" data-reveal>
+        <a class="cta-btn primary magnetic" href="https://claude.ai/code/artifact/37f591e4-ef9b-4362-a854-3244aa49cf99" target="_blank" rel="noopener">
+          <span class="n">01</span><span class="t">Live console</span><span class="a">↗</span>
+        </a>
+        <a class="cta-btn magnetic" href="#research">
+          <span class="n">02</span><span class="t">The research</span><span class="a">↓</span>
+        </a>
+        <a class="cta-btn magnetic" href="#system">
+          <span class="n">03</span><span class="t">The system</span><span class="a">↓</span>
+        </a>
+        <a class="cta-btn magnetic" href="https://github.com/huggingface/pi-local-router" target="_blank" rel="noopener">
+          <span class="n">04</span><span class="t">GitHub</span><span class="a">↗</span>
+        </a>
+        <a class="cta-btn magnetic" href="mailto:musagayev@gmail.com">
+          <span class="n">05</span><span class="t">Contact</span><span class="a">→</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="hero-strip" data-reveal>
+      <div class="wrap strip-row">
+        <div class="strip-item live"><span class="v" id="live-pnl">$0</span><span class="k"><i class="live-dot"></i>verified p&amp;l — swarm, live</span></div>
+        <div class="strip-item"><span class="v" data-count="5" data-suffix=" days">0</span><span class="k">of analyst work</span></div>
+        <div class="strip-arrow">→</div>
+        <div class="strip-item"><span class="v" data-count="20" data-suffix=" min">0</span><span class="k">one-shot model agent</span></div>
+        <div class="strip-item"><span class="v" data-count="100" data-prefix="10–" data-suffix="×">0</span><span class="k">background inference demand</span></div>
+        <div class="strip-item"><span class="v" data-count="6" data-suffix=" agents">0</span><span class="k">one shared mandate, one budget</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ CREDO ═══════════ -->
+  <section class="credo-band" data-reveal>
+    <div class="wrap credo">
+      <span class="credo-mark">The allocator&rsquo;s rule</span>
+      <span class="credo-line">Not more work — the best <em>verified</em> outcome per unit of time, compute, and risk.</span>
+    </div>
+  </section>
+
+  <!-- ═══════════ THE SHIFT — token economy → agent economy (pinned scroll story) ═══════════ -->
+  <section id="shift">
+    <div class="shift-pin">
+      <canvas id="shift-canvas" aria-hidden="true"></canvas>
+      <div class="wrap shift-head">
+        <span class="eyebrow">02 · The shift</span>
+        <h2 class="shift-title">Token economy <span class="arr">→</span> <em>agent economy</em></h2>
+      </div>
+
+      <div class="wrap shift-stages">
+        <div class="shift-stage" data-stage="0">
+          <span class="ss-num">S1 / 2023</span>
+          <h3>The prompt</h3>
+          <p>One call, one answer. Intelligence as a vending machine — no memory, no stakes, no economics beyond the invoice.</p>
+        </div>
+        <div class="shift-stage" data-stage="1">
+          <span class="ss-num">S2 / TOKEN ECONOMY</span>
+          <h3>The token router</h3>
+          <p>OpenRouter&rsquo;s world: arbitrage price per million tokens, pick the cheapest capable model, per request. Every call is a stranger — the router never learns whether the answer was <b>right</b>.</p>
+        </div>
+        <div class="shift-stage" data-stage="2">
+          <span class="ss-num">S3 / WORKFLOWS</span>
+          <h3>Chained calls</h3>
+          <p>Pipelines and glue code. Steps get cheap, but nobody owns the outcome — one silent upstream error poisons everything downstream.</p>
+        </div>
+        <div class="shift-stage" data-stage="3">
+          <span class="ss-num">S4 / BACKGROUND AGENTS</span>
+          <h3>The unsupervised swarm</h3>
+          <p>Agents run for hours without a human in the loop. Inference demand multiplies 10–100×. Spend explodes — with no measure of verified value per dollar.</p>
+        </div>
+        <div class="shift-stage" data-stage="4">
+          <span class="ss-num">S5 / AGENT ECONOMY</span>
+          <h3>The allocator</h3>
+          <p>Digital workers with identities, budgets, autonomy and P&amp;L. Capital, verification and permissions routed by <b>verified marginal value</b> — not token price. This is the layer above every router.</p>
+        </div>
+      </div>
+
+      <div class="wrap shift-rail" aria-hidden="true">
+        <div class="sr-item" data-stage="0"><i></i><span>Prompt</span></div>
+        <div class="sr-item" data-stage="1"><i></i><span>Token router</span></div>
+        <div class="sr-item" data-stage="2"><i></i><span>Workflows</span></div>
+        <div class="sr-item" data-stage="3"><i></i><span>Agents</span></div>
+        <div class="sr-item" data-stage="4"><i></i><span>Agent economy</span></div>
+        <div class="sr-bar"><i id="sr-fill"></i></div>
+      </div>
+    </div>
+
+    <!-- positioning: vs the token routers -->
+    <div class="wrap versus" data-reveal>
+      <p class="versus-hed">OpenRouter prices <span class="dim">tokens</span>. Allocator manages <em>a workforce</em>.</p>
+      <div class="versus-grid">
+        <div class="versus-col">
+          <div class="vc-head"><span class="vc-tag">TOKEN ECONOMY</span><span class="vc-who">per-request routers</span></div>
+          <ul>
+            <li><b>Unit</b><span>1M tokens</span></li>
+            <li><b>Decision</b><span>cheapest capable model, per request</span></li>
+            <li><b>State</b><span>none — every call is a stranger</span></li>
+            <li><b>Metric</b><span>$ / token</span></li>
+            <li><b>On failure</b><span>retry, pay again</span></li>
+            <li><b>Governance</b><span>an API key</span></li>
+          </ul>
+        </div>
+        <div class="versus-div" aria-hidden="true"><span>vs</span></div>
+        <div class="versus-col is-us">
+          <div class="vc-head"><span class="vc-tag">AGENT ECONOMY</span><span class="vc-who">Allocator.os</span></div>
+          <ul>
+            <li><b>Unit</b><span>verified outcome</span></li>
+            <li><b>Decision</b><span>budget, model tier &amp; verification per blast radius</span></li>
+            <li><b>State</b><span>causal ledger that survives model swaps</span></li>
+            <li><b>Metric</b><span>cost / verified task</span></li>
+            <li><b>On failure</b><span>halt the blast radius, revalidate, charge the owner</span></li>
+            <li><b>Governance</b><span>earned autonomy, budgets, audit history</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ DECOMPOSITION & ROUTING ═══════════ -->
+  <section id="routing">
+    <div class="wrap">
+      <span class="eyebrow" data-reveal>03 · Decomposition &amp; routing</span>
+      <h2 class="sec-h2" data-split>One task, many minds — <em>priced per step</em></h2>
+      <p class="sec-lede" data-reveal>
+        Decompose a comprehensive task and most steps stop needing a frontier model. Reading a
+        5-page PDF routes to an open-source model for cents; the deep-research core routes
+        automatically to <b>GPT&nbsp;5.6 or Fable&nbsp;5</b> — with an independent verifier attached
+        wherever the blast radius is large. Every step is calibrated on the cost × accuracy × speed triangle.
+      </p>
+
+      <div class="decomp" data-reveal>
+        <div class="decomp-head">
+          <span class="dh-task">COMPREHENSIVE TASK — INITIATE COVERAGE: NVDA</span>
+          <span class="dh-stamp">DECOMPOSED → 6 STEPS</span>
+        </div>
+        <div class="decomp-steps" id="decomp-steps">
+          <div class="dstep" data-cost="0.03" data-fcost="2.40" data-risk="0.12">
+            <span class="ds-i">01</span>
+            <span class="ds-body"><b>Read a 5-page PDF</b><i>filing excerpt → structured notes</i></span>
+            <span class="ds-risk"><i></i></span>
+            <span class="ds-chip t-open">OPEN-SOURCE · QWEN-72B<em>$0.03</em></span>
+          </div>
+          <div class="dstep" data-cost="0.01" data-fcost="2.10" data-risk="0.08">
+            <span class="ds-i">02</span>
+            <span class="ds-body"><b>Extract &amp; normalize tables</b><i>xbrl → clean time series</i></span>
+            <span class="ds-risk"><i></i></span>
+            <span class="ds-chip t-local">LOCAL · LLAMA-8B<em>$0.01</em></span>
+          </div>
+          <div class="dstep" data-cost="0.11" data-fcost="2.60" data-risk="0.34">
+            <span class="ds-i">03</span>
+            <span class="ds-body"><b>Reconcile 3-stmt historicals</b><i>ties, checks, restatements</i></span>
+            <span class="ds-risk"><i></i></span>
+            <span class="ds-chip t-open">OPEN-SOURCE · DEEPSEEK-V4<em>$0.11</em></span>
+          </div>
+          <div class="dstep hi" data-cost="1.42" data-fcost="1.42" data-risk="0.82">
+            <span class="ds-i">04</span>
+            <span class="ds-body"><b>Deep research — moat &amp; capex cycle</b><i>multi-source synthesis, judgment</i></span>
+            <span class="ds-risk"><i></i></span>
+            <span class="ds-chip t-frontier">FRONTIER · GPT 5.6<em>$1.42</em></span>
+          </div>
+          <div class="dstep hi" data-cost="2.05" data-fcost="2.05" data-risk="0.88">
+            <span class="ds-i">05</span>
+            <span class="ds-body"><b>DCF assumptions &amp; sensitivity</b><i>valuation core — max blast radius</i></span>
+            <span class="ds-risk"><i></i></span>
+            <span class="ds-chip t-frontier">FRONTIER · FABLE 5 + VERIFIER<em>$2.05</em></span>
+          </div>
+          <div class="dstep" data-cost="0.24" data-fcost="2.27" data-risk="0.41">
+            <span class="ds-i">06</span>
+            <span class="ds-body"><b>Draft &amp; fact-check memo</b><i>write, cite, audit</i></span>
+            <span class="ds-risk"><i></i></span>
+            <span class="ds-chip t-open">OPEN-SOURCE — FABLE 5 AUDIT<em>$0.24</em></span>
+          </div>
+        </div>
+        <div class="decomp-foot">
+          <div class="df-col">
+            <span class="df-k">ALL-FRONTIER BASELINE</span>
+            <span class="df-v" id="cost-frontier">$0.00</span>
+            <span class="df-bar"><i id="bar-frontier"></i></span>
+          </div>
+          <div class="df-col us">
+            <span class="df-k">ALLOCATED BY RISK</span>
+            <span class="df-v" id="cost-alloc">$0.00</span>
+            <span class="df-bar"><i id="bar-alloc"></i></span>
+          </div>
+          <div class="df-note" id="df-note">SAME VERIFIED OUTCOME · −70% SPEND</div>
+        </div>
+        <div class="scanline" id="scanline" aria-hidden="true"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ RESEARCH ═══════════ -->
+  <section id="research">
+    <div class="wrap">
+      <span class="eyebrow" data-reveal>04 · Research</span>
+      <h2 class="sec-h2" data-split>From one-shot models to <em>durable background agents</em></h2>
+      <p class="sec-lede" data-reveal>
+        Built from a finance-desk testbed: a one-shot agent that turns a ticker into a full
+        investment model — historicals, forecasts, DCF, three statements, a decision. Making it
+        durable exposed three capabilities that &ldquo;keep a log&rdquo; cannot provide.
+      </p>
+
+      <div class="card-grid">
+        <article class="card" data-tilt data-reveal>
+          <span class="card-num">R·01</span>
+          <h3>Causal execution, not chronological logging</h3>
+          <p>Every claim links to its evidence, assumptions, dependencies, provenance, and downstream blast radius — so the system knows exactly which errors can propagate through the workflow.</p>
+          <div class="card-tag">execution ledger</div>
+        </article>
+        <article class="card" data-tilt data-reveal>
+          <span class="card-num">R·02</span>
+          <h3>Risk-weighted verification</h3>
+          <p>Stronger models, independent evaluators, and human review flow only to decisions whose failure would invalidate the broader task. Low-risk steps get cheap models, caches, and minimal checks.</p>
+          <div class="card-tag">verification budget</div>
+        </article>
+        <article class="card" data-tilt data-reveal>
+          <span class="card-num">R·03</span>
+          <h3>Durable learning &amp; co-evolution</h3>
+          <p>Execution state survives interruptions and context resets. Critical checkpoints are selectively revalidated as prompts, tools, guardrails, or the underlying models change.</p>
+          <div class="card-tag">model–harness co-evolution</div>
+        </article>
+      </div>
+
+      <div class="ledger-teaser" data-reveal>
+        <div class="lt-head"><span>EXECUTION LEDGER — OPERATIONAL, NOT PASSIVE</span><span class="lt-live"><i></i>live</span></div>
+        <div class="lt-rows">
+          <div class="lt-row"><span class="t">t+041</span><span class="tag halt">HALT</span><span>Revenue-driver claim invalidated — 6 downstream claims frozen before memo release</span></div>
+          <div class="lt-row"><span class="t">t+043</span><span class="tag reval">REVALIDATE</span><span>Blast-radius frontier re-verified with independent evaluator, $17.20 charged to owner</span></div>
+          <div class="lt-row"><span class="t">t+048</span><span class="tag route">ROUTE</span><span>Low-risk formatting step downgraded to cached local model — $0.04 / task</span></div>
+          <div class="lt-row"><span class="t">t+056</span><span class="tag esc">ESCALATE</span><span>Uncertainty above tolerance on WACC assumption — routed to human desk review</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SYSTEM ═══════════ -->
+  <section id="system">
+    <div class="wrap">
+      <span class="eyebrow" data-reveal>05 · System</span>
+      <h2 class="sec-h2" data-split>A portfolio manager for <em>digital workers</em></h2>
+      <p class="sec-lede" data-reveal>
+        Enterprises are beginning to run two workforces — human and digital. Observability shows
+        what an agent did. It does not decide which agents should receive more work, money,
+        compute, memory, or autonomy. That is an allocation problem, and it needs a CFO.
+      </p>
+
+      <div class="card-grid">
+        <article class="card" data-tilt data-reveal>
+          <span class="card-num">S·01</span>
+          <h3>Agent capital allocation</h3>
+          <p>Tasks, inference spend, and compute flow to agents producing the highest verified marginal value — and the system says when a bigger budget beats further optimization.</p>
+          <div class="card-tag">cost / verified outcome</div>
+        </article>
+        <article class="card" data-tilt data-reveal>
+          <span class="card-num">S·02</span>
+          <h3>Earned autonomy</h3>
+          <p>Permissions, budget, and independence expand or contract on accumulated performance — probation to supervised to trusted to autonomous — never on static settings.</p>
+          <div class="card-tag">performance-gated permissions</div>
+        </article>
+        <article class="card" data-tilt data-reveal>
+          <span class="card-num">S·03</span>
+          <h3>Decision continuity</h3>
+          <p>What was decided, why, which alternatives were rejected, and what happened next — preserved even when the model or the agent behind it is replaced. Every action is a small experiment.</p>
+          <div class="card-tag">institutional memory</div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ DEMO BAND ═══════════ -->
+  <section id="demo">
+    <div class="wrap demo-panel" data-reveal>
+      <div class="demo-copy">
+        <span class="eyebrow">06 · Console</span>
+        <h2 class="demo-h2">Watch the allocator manage a live workforce</h2>
+        <p>Six agents build a public-company model under a fixed $2,400 budget. Capital reallocates
+        every review cycle, autonomy is earned and revoked, verification follows blast radius —
+        and you can inject an upstream error to watch containment run.</p>
+        <a class="cta-btn primary magnetic" href="https://claude.ai/code/artifact/37f591e4-ef9b-4362-a854-3244aa49cf99" target="_blank" rel="noopener">
+          <span class="n">▶</span><span class="t">Open the console</span><span class="a">↗</span>
+        </a>
+      </div>
+      <div class="demo-visual" aria-hidden="true">
+        <div class="dv-bar" style="--w:78%; --d:0s"><i></i><span>Valuation</span></div>
+        <div class="dv-bar" style="--w:64%; --d:.15s"><i></i><span>Forecast</span></div>
+        <div class="dv-bar" style="--w:46%; --d:.3s"><i></i><span>Historicals</span></div>
+        <div class="dv-bar" style="--w:38%; --d:.45s"><i></i><span>Audit</span></div>
+        <div class="dv-bar" style="--w:30%; --d:.6s"><i></i><span>Memo</span></div>
+        <div class="dv-bar" style="--w:22%; --d:.75s"><i></i><span>Ingest</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <footer id="contact">
+    <div class="wrap foot-inner">
+      <div class="foot-thesis" data-reveal>
+        <span class="eyebrow">07 · Thesis</span>
+        <p class="foot-line">Can agents become more reliable not by checking everything, but by learning <em>where mistakes matter most</em> — and spending intelligence accordingly?</p>
+      </div>
+      <div class="foot-links" data-reveal>
+        <a href="mailto:musagayev@gmail.com">musagayev@gmail.com</a>
+        <a href="https://github.com/huggingface/pi-local-router" target="_blank" rel="noopener">github ↗</a>
+        <a href="https://claude.ai/code/artifact/37f591e4-ef9b-4362-a854-3244aa49cf99" target="_blank" rel="noopener">live console ↗</a>
+      </div>
+      <div class="foot-base">
+        <span>© 2026 · Allocator — an operating system for the agent economy</span>
+        <span class="foot-mono">verified value / $ · earned autonomy · causal ledgers</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/scene3d.js"></script>
+  <script src="js/shift.js"></script>
+  <script src="js/routing.js"></script>
+</body>
+</html>

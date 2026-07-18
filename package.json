@@ -1,0 +1,9 @@
+{
+  "name": "agent-allocator-landing",
+  "version": "0.1.0",
+  "description": "Allocator — an operating system for the agent economy. Landing page.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  }
+}
