@@ -90,6 +90,7 @@
   <section id="hero">
     <canvas id="flow-canvas" aria-hidden="true"></canvas>
     <div class="hero-veil" aria-hidden="true"></div>
+    <div id="hero-msgs" aria-hidden="true"></div>
 
     <div class="hero-inner wrap">
       <span class="eyebrow" data-reveal>Risk-weighted harnesses · the agent economy</span>
@@ -396,11 +397,53 @@
     </div>
   </section>
 
+  <!-- ═══════════ OPERATIONS — LangSmith-style trace surface ═══════════ -->
+  <section id="ops">
+    <div class="wrap">
+      <span class="eyebrow" data-reveal>07 · Operations</span>
+      <h2 class="sec-h2" data-split>Every decision, <em>traced &amp; acted on</em></h2>
+      <p class="sec-lede" data-reveal>
+        A familiar ops surface — runs, spans, tokens, cost — with one difference that matters:
+        observability tools <b>show</b> you the trace; Allocator&rsquo;s causal ledger <b>acts</b> on it —
+        halting blast radii, revalidating claims, and moving budget while the run is still live.
+        Click a run to inspect its trace.
+      </p>
+
+      <div class="dash" data-reveal>
+        <div class="dash-chrome">
+          <span class="dc-dots"><i></i><i></i><i></i></span>
+          <span class="dc-url">allocator.os/ops · project: nvda-coverage</span>
+          <span class="dc-live"><i></i>LIVE</span>
+        </div>
+        <div class="dash-kpis">
+          <div class="dk"><span class="dk-k">RUNS TODAY</span><span class="dk-v" id="dk-runs">1,284</span></div>
+          <div class="dk"><span class="dk-k">VERIFIED RATE</span><span class="dk-v ok" id="dk-rate">96.8%</span></div>
+          <div class="dk"><span class="dk-k">COST TODAY</span><span class="dk-v" id="dk-cost">$214.60</span></div>
+          <div class="dk"><span class="dk-k">P95 LATENCY</span><span class="dk-v" id="dk-p95">8.4s</span></div>
+          <div class="dk"><span class="dk-k">ESCALATIONS</span><span class="dk-v warn" id="dk-esc">3</span></div>
+        </div>
+        <div class="dash-body">
+          <div class="dash-runs">
+            <div class="dr-head">
+              <span>RECENT RUNS</span><span>MODEL</span><span>LAT</span><span>COST</span>
+            </div>
+            <div id="run-rows"></div>
+          </div>
+          <div class="dash-trace">
+            <div class="dt-head"><span id="trace-title">TRACE</span><span class="dt-id" id="trace-id"></span></div>
+            <div class="dt-spans" id="trace-spans"></div>
+            <div class="dt-meta" id="trace-meta"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ═══════════ FOOTER ═══════════ -->
   <footer id="contact">
     <div class="wrap foot-inner">
       <div class="foot-thesis" data-reveal>
-        <span class="eyebrow">07 · Thesis</span>
+        <span class="eyebrow">08 · Thesis</span>
         <p class="foot-line">Can agents become more reliable not by checking everything, but by learning <em>where mistakes matter most</em> — and spending intelligence accordingly?</p>
       </div>
       <div class="foot-links" data-reveal>
@@ -419,5 +462,7 @@
   <script src="js/scene3d.js"></script>
   <script src="js/shift.js"></script>
   <script src="js/routing.js"></script>
+  <script src="js/globe.js"></script>
+  <script src="js/dashboard.js"></script>
 </body>
 </html>

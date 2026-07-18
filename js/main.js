@@ -163,6 +163,7 @@ var lenis = null;
    revalidate amber, recover. Live P&L ticks in the hero strip.
 ═══════════════════════════════════════════════════════════ */
 (function portfolioSwarm() {
+  return; /* superseded by js/globe.js — the 3D globe hero owns #flow-canvas now */
   var canvas = document.getElementById('flow-canvas');
   if (!canvas) return;
   var ctx = canvas.getContext('2d');
