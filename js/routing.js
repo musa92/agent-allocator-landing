@@ -577,8 +577,8 @@
     { d: 0.63, n: 'TALLY', cz: -280 },
     { d: 0.73, n: 'TALLY', cz: -300 },
     { d: 0.79, n: 'ORACLE', cz: -270 },
-    { d: 0.91, n: 'ORACLE', cz: -300 },
-    { d: 1.00, n: 'COVERAGE DESK', cz: 80 }
+    { d: 0.90, n: 'ORACLE', cz: -300 },
+    { d: 1.00, n: null, cz: 440 } // the finale: pull all the way back out to the whole company
   ];
   CAMK.forEach(function (kf) { kf.i = kf.n ? findNode(kf.n) : -1; });
   function camAt(d) {
@@ -641,7 +641,7 @@
     var cam = camAt(k);
     /* the world orbit damps as we get inside a harness — the camera then
        slow-orbits the focal agent instead of spinning the whole room */
-    var insideK = clamp((k - 0.3) / 0.14);
+    var insideK = clamp((k - 0.3) / 0.14) * (1 - clamp((k - 0.9) / 0.08)); // orbit resumes on the way out
     var arriveK = clamp(k / 0.3);
     arriveK = arriveK * arriveK * (3 - 2 * arriveK);
     var rotY = t * 0.0001 * (1 - 0.72 * insideK) + 0.85 * (1 - arriveK);
@@ -911,7 +911,8 @@
     /* HUD — live totals up top, fleet-wide distributions + the token
        bill down below on the wide shot; captions narrate the dive. */
     var hud = clamp((k - 0.3) / 0.4);
-    var fleet = hud * (1 - clamp((k - 0.32) / 0.1)); // fleet boards yield to the dive
+    /* fleet boards yield to the dive, then return for the zoom-out finale */
+    var fleet = hud * Math.max(1 - clamp((k - 0.32) / 0.1), clamp((k - 0.93) / 0.06));
     if (hud > 0.02) {
       g.globalAlpha = hud;
       g.textAlign = 'left';
