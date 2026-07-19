@@ -481,20 +481,40 @@
   /* per-dept telemetry ranges [latMs min,max · $/task min,max · cache% min,max] */
   var DEPTS3D = [
     { dept: 'COVERAGE DESK', c: '#22d3ee', pos: [330, -55, 70], lat: [1800, 9200], cost: [0.08, 4.1], cache: [58, 84],
-      crew: ['SCRIBE', 'JANITOR', 'MASON', 'ORACLE', 'ABACUS-PRIME', 'QUILL'] },
+      crew: ['SCRIBE', 'JANITOR', 'MASON', 'ORACLE', 'ABACUS-PRIME', 'QUILL'],
+      models: ['QWEN-72B', 'DEEPSEEK-V3.2', 'GPT 5.6', 'FABLE 5 + VERIFY'],
+      tasks: ['INGESTING 10-K — PAGE 412/600', 'REBUILDING Q3 HISTORICALS', 'DEEP RESEARCH — MOAT & CAPEX',
+        'FACT-CHECK MEMO — 88 CLAIMS', 'DCF SENSITIVITY SWEEP'] },
     { dept: 'PAYROLL', c: '#22c55e', pos: [-320, 70, 110], lat: [420, 1900], cost: [0.01, 0.22], cache: [88, 97],
-      crew: ['TALLY', 'ESCROW', 'LEDGER', 'STIPEND', 'WITHHOLD'] },
+      crew: ['TALLY', 'ESCROW', 'LEDGER', 'STIPEND', 'WITHHOLD'],
+      models: ['DEEPSEEK-V3.2 · BATCH', 'LLAMA-8B · LOCAL'],
+      tasks: ['RECONCILING 2,412 STUBS', 'ESCROW SWEEP — 14 ACCOUNTS', 'WITHHOLDING AUDIT Q3',
+        'OFF-CYCLE RUN — QUEUED'] },
     { dept: 'SECURITY', c: '#ff5f57', pos: [-140, -160, -190], lat: [64, 310], cost: [0.004, 0.03], cache: [91, 99],
-      crew: ['SENTRY', 'CIPHER', 'WARDEN', 'TRIPWIRE', 'AEGIS'] },
+      crew: ['SENTRY', 'CIPHER', 'WARDEN', 'TRIPWIRE', 'AEGIS'],
+      models: ['LLAMA-8B · ON-PREM'],
+      tasks: ['SCANNING 1,204 EGRESS EVENTS/MIN', 'ROTATING 41 CREDENTIALS', 'TRIAGING 3 ANOMALIES',
+        'PERIMETER SWEEP 12/12'] },
     { dept: 'LEGAL', c: '#a78bfa', pos: [180, 160, -170], lat: [2400, 11400], cost: [0.3, 2.9], cache: [49, 71],
-      crew: ['CLAUSE', 'VERDICT', 'BRIEF', 'REDLINE'] },
+      crew: ['CLAUSE', 'VERDICT', 'BRIEF', 'REDLINE'],
+      models: ['FABLE 5', 'GPT 5.6'],
+      tasks: ['REDLINING MSA §7.2', 'CITATION CHECK — 88 CLAIMS', 'NDA TRIAGE — QUEUE 4',
+        'PRECEDENT SEARCH — 3 DOCKETS'] },
     { dept: 'SUPPORT', c: '#f7a600', pos: [40, -185, 200], lat: [380, 1450], cost: [0.008, 0.09], cache: [86, 96],
-      crew: ['ECHO', 'TRIAGE', 'CONCIERGE', 'PATCH'] },
+      crew: ['ECHO', 'TRIAGE', 'CONCIERGE', 'PATCH'],
+      models: ['QWEN-72B', 'LLAMA-8B · LOCAL'],
+      tasks: ['TICKET BACKLOG 12 → 3', 'DRAFTING RMA RESPONSE', 'ESCALATION TRIAGE — P2',
+        'KB ARTICLE REFRESH'] },
     { dept: 'TREASURY', c: '#34d399', pos: [-90, 185, -60], lat: [900, 4200], cost: [0.05, 0.9], cache: [72, 90],
-      crew: ['BULLION', 'HEDGE', 'FLOAT'] },
+      crew: ['BULLION', 'HEDGE', 'FLOAT'],
+      models: ['DEEPSEEK-V3.2', 'FABLE 5 + VERIFY'],
+      tasks: ['CASH SWEEP FORECAST', 'FX HEDGE ROLL — EUR 2.1M', 'LIQUIDITY LADDER REBUILD'] },
     { dept: 'INFRA OPS', c: '#8b887c', pos: [175, 65, 330], lat: [45, 220], cost: [0.001, 0.01], cache: [94, 99],
-      crew: ['SHUTTLE', 'DAEMON', 'SWEEPER', 'MIRROR'] }
+      crew: ['SHUTTLE', 'DAEMON', 'SWEEPER', 'MIRROR'],
+      models: ['LLAMA-8B · LOCAL'],
+      tasks: ['CACHE EVICTION PASS', 'GPU LEASE ROTATION', 'MIRROR SYNC 98.2%', 'LOG COMPACTION — 14GB'] }
   ];
+  var AUTOL3D = [['PROBATION', 2], ['SUPERVISED', 3], ['TRUSTED', 4]];
   var NODES3D = [{ id: 'CORE', name: 'ALLOCATOR', x: 0, y: 0, z: 0, r: 24, c: '#ffb400', kind: 'core', ph: 0 }];
   var EDGES3D = [];
   DEPTS3D.forEach(function (d, dj) {
@@ -525,7 +545,12 @@
         ph: dj * 1.7 + aj,
         lat: lerp(d.lat[0], d.lat[1], u1),
         cost: lerp(d.cost[0], d.cost[1], u2),
-        cache: lerp(d.cache[0], d.cache[1], u3)
+        cache: lerp(d.cache[0], d.cache[1], u3),
+        /* dossier fields — everything a click needs, minted from the name */
+        model: d.models[(h >>> 3) % d.models.length],
+        task: d.tasks[(h >>> 14) % d.tasks.length],
+        autoL: AUTOL3D[(h >>> 18) % 3][0],
+        blocks: AUTOL3D[(h >>> 18) % 3][1]
       });
       EDGES3D.push([hi, NODES3D.length - 1, 1]);
     });
@@ -553,7 +578,11 @@
   var AGENT_IDX = [];
   NODES3D.forEach(function (n, i) {
     if (n.kind === 'agent') {
-      n.tokSave = 35 + (nameHash(n.name) >>> 16) % 50;
+      var ah = nameHash(n.name);
+      n.tokSave = 35 + (ah >>> 16) % 50;
+      var rawT = 40 + (ah >>> 7) % 960; // K tokens today
+      n.tokLine = 'TOK TODAY ' + fmtTok(rawT) + ' RAW → ' +
+        fmtTok(rawT * (1 - n.tokSave / 100)) + ' BILLED · −' + n.tokSave + '%';
       AGENT_IDX.push(i);
     }
   });
@@ -573,21 +602,23 @@
   /* ── clickable harnesses — hover highlights, click opens a live
      crew inspector pinned to the hub. Hit zones are rebuilt from the
      projected positions every frame, so they track the orbiting world. */
-  var hubHits = [], hoverHub = -1, selHub = -1;
+  var hubHits = [], hoverNode = -1, selNode = -1;
   if (depthCanvas && !REDUCED) {
     depthCanvas.addEventListener('pointermove', function (e) {
       var rc = depthCanvas.getBoundingClientRect();
       var mx2 = e.clientX - rc.left, my2 = e.clientY - rc.top;
-      hoverHub = -1;
+      hoverNode = -1;
+      var best = Infinity;
       for (var hi2 = 0; hi2 < hubHits.length; hi2++) {
         var hh = hubHits[hi2];
         var dx = mx2 - hh.x, dy = my2 - hh.y;
-        if (dx * dx + dy * dy < (hh.r + 14) * (hh.r + 14)) { hoverHub = hh.i; break; }
+        var dd = dx * dx + dy * dy, rr = (hh.r + 12) * (hh.r + 12);
+        if (dd < rr && dd < best) { best = dd; hoverNode = hh.i; }
       }
-      depthCanvas.style.cursor = hoverHub >= 0 ? 'pointer' : '';
+      depthCanvas.style.cursor = hoverNode >= 0 ? 'pointer' : '';
     });
     depthCanvas.addEventListener('click', function () {
-      selHub = hoverHub >= 0 ? (selHub === hoverHub ? -1 : hoverHub) : -1;
+      selNode = hoverNode >= 0 ? (selNode === hoverNode ? -1 : hoverNode) : -1;
     });
   }
 
@@ -838,15 +869,16 @@
         g.beginPath(); g.arc(p.x, p.y, r * 2.0, sa, sa + 0.85); g.stroke();
         g.lineWidth = 1.4;
       }
-      if (n.kind === 'hub') {
-        hubHits.push({ i: i, x: p.x, y: p.y, r: r });
-        if (i === hoverHub || i === selHub) {
-          /* hover / selected — the harness lights up */
-          g.globalAlpha = (i === selHub ? 0.85 : 0.55) * k;
+      if (n.kind !== 'core') {
+        /* every harness AND every agent dot is a target — small dots
+           get an inflated hit radius */
+        hubHits.push({ i: i, x: p.x, y: p.y, r: Math.max(r, 9) });
+        if (i === hoverNode || i === selNode) {
+          g.globalAlpha = (i === selNode ? 0.85 : 0.55) * k;
           g.strokeStyle = n.c; g.lineWidth = 1.6;
-          g.beginPath(); g.arc(p.x, p.y, r * 1.55, 0, 6.2832); g.stroke();
+          g.beginPath(); g.arc(p.x, p.y, r * 1.55 + 3, 0, 6.2832); g.stroke();
           g.globalAlpha = 0.2 * k;
-          g.beginPath(); g.arc(p.x, p.y, r * 2.1, 0, 6.2832); g.stroke();
+          g.beginPath(); g.arc(p.x, p.y, r * 2.1 + 5, 0, 6.2832); g.stroke();
         }
       }
       var lk = clamp((k - 0.35) / 0.4);
@@ -938,12 +970,9 @@
       g.globalAlpha = 1;
     }
 
-    /* dossier cards — the close-up holds pin a live card to the agent */
-    CLOSEUPS.forEach(function (cu, ci) {
-      var a = clamp((k - cu.d0) / 0.04) * (1 - clamp((k - (cu.d1 - 0.04)) / 0.04));
-      if (a <= 0.02) return;
-      var n = NODES3D[cu.i], p = P[cu.i];
-      if (!p) return;
+    /* dossier renderer — used by the scripted close-ups AND by clicks
+       on any agent dot */
+    function drawDossier(n, p, a, cfg, ci) {
       var nR = n.r * p.s * 1.35;
       /* sonar ping — the agent under the lens announces itself */
       var ping = (t % 1600) / 1600;
@@ -977,29 +1006,29 @@
       g.textAlign = 'right';
       g.fillStyle = n.c;
       g.font = '700 8px "Space Mono", monospace';
-      g.fillText(cu.dept, x + cw - 10, y + 19);
+      g.fillText(cfg.dept, x + cw - 10, y + 19);
       g.textAlign = 'left';
       g.fillStyle = '#8b887c';
       g.font = '9px "Space Mono", monospace';
-      g.fillText('MODEL  ' + cu.model, x + 12, y + 37);
+      g.fillText('MODEL  ' + cfg.model, x + 12, y + 37);
       g.fillStyle = '#ebe8e0';
-      g.fillText('TASK   ' + cu.task, x + 12, y + 52);
+      g.fillText('TASK   ' + cfg.task, x + 12, y + 52);
       /* live meters — numbers breathe so the card feels wired in */
       var jl = n.lat * (1 + 0.05 * Math.sin(t * 0.0031 + ci * 2));
       var jc = n.cost < 0.01 ? '<$0.01' : '$' + (n.cost * (1 + 0.03 * Math.sin(t * 0.0023))).toFixed(2);
       g.fillStyle = '#8b887c';
       g.fillText('P95 ' + fmtMs(jl) + ' · ' + jc + '/TASK · CACHE ' + Math.round(n.cache) + '%', x + 12, y + 68);
       g.fillStyle = '#22c55e';
-      g.fillText(cu.tok, x + 12, y + 83);
+      g.fillText(cfg.tok, x + 12, y + 83);
       /* autonomy blocks */
       g.fillStyle = '#8b887c';
       g.fillText('AUTONOMY', x + 12, y + 99);
       for (var bi = 0; bi < 5; bi++) {
-        g.fillStyle = bi < cu.blocks ? n.c : 'rgba(139,136,124,0.25)';
+        g.fillStyle = bi < cfg.blocks ? n.c : 'rgba(139,136,124,0.25)';
         g.fillRect(x + 76 + bi * 13, y + 92, 9, 7);
       }
       g.fillStyle = n.c;
-      g.fillText(cu.auto, x + 150, y + 99);
+      g.fillText(cfg.auto, x + 150, y + 99);
       /* live activity bars along the card foot */
       for (var ai = 0; ai < 26; ai++) {
         var bh = 3 + 8 * Math.abs(Math.sin(ai * 1.7 + t * 0.004 + ci * 3));
@@ -1007,11 +1036,31 @@
         g.fillRect(x + 12 + ai * 9, y + chh - 10 - bh, 5, bh);
       }
       g.globalAlpha = 1;
+    }
+
+    /* the scripted close-up holds pin their cards to the flight path */
+    CLOSEUPS.forEach(function (cu, ci) {
+      var a = clamp((k - cu.d0) / 0.04) * (1 - clamp((k - (cu.d1 - 0.04)) / 0.04));
+      if (a <= 0.02) return;
+      var n = NODES3D[cu.i], p = P[cu.i];
+      if (!p) return;
+      drawDossier(n, p, a, cu, ci);
     });
 
+    /* clicked agent dot → its dossier, generated from the node itself */
+    if (selNode >= 0 && NODES3D[selNode].kind === 'agent') {
+      var san = NODES3D[selNode], sap = P[selNode];
+      if (sap) {
+        drawDossier(san, sap, 1, {
+          dept: DEPTS3D[san.di].dept, model: san.model, task: san.task,
+          tok: san.tokLine, auto: san.autoL, blocks: san.blocks
+        }, san.di);
+      }
+    }
+
     /* harness inspector — click a hub, meet the crew */
-    if (selHub >= 0) {
-      var hn = NODES3D[selHub], hp3 = P[selHub];
+    if (selNode >= 0 && NODES3D[selNode].kind === 'hub') {
+      var hn = NODES3D[selNode], hp3 = P[selNode];
       if (hp3) {
         var crew2 = [];
         NODES3D.forEach(function (n2, i2) {
@@ -1076,11 +1125,11 @@
       g.fillStyle = '#ffb400';
       g.font = '700 11px "Space Mono", monospace';
       g.fillText('BKPL <GO> — SWARM BACKPLANE · ' + DEPTS3D.length + ' HARNESSES · LIVE TOPOLOGY', 24, 34);
-      if (selHub < 0) {
+      if (selNode < 0) {
         g.fillStyle = '#8b887c';
         g.font = '8.5px "Space Mono", monospace';
         g.globalAlpha = hud * (0.55 + 0.3 * Math.sin(t * 0.002));
-        g.fillText('CLICK A HARNESS TO INSPECT ITS CREW', 24, 50);
+        g.fillText('CLICK A HARNESS FOR ITS CREW · CLICK ANY AGENT DOT FOR ITS DOSSIER', 24, 50);
         g.globalAlpha = hud;
       }
       g.textAlign = 'right';
@@ -1158,7 +1207,7 @@
     if (on && !depthOn) { depthOn = true; depthRAF = requestAnimationFrame(tickDepth); }
     else if (!on && depthOn) {
       depthOn = false;
-      selHub = -1; hoverHub = -1;
+      selNode = -1; hoverNode = -1;
       depthCanvas.style.cursor = '';
       if (depthRAF) cancelAnimationFrame(depthRAF);
       if (depthCtx) {
@@ -1198,7 +1247,13 @@
     var dbgSel = /[?&]sel=(\d+)/.exec(location.search);
     if (dbgSel) {
       NODES3D.forEach(function (n, i) {
-        if (n.kind === 'hub' && n.di === parseInt(dbgSel[1], 10)) selHub = i;
+        if (n.kind === 'hub' && n.di === parseInt(dbgSel[1], 10)) selNode = i;
+      });
+    }
+    var dbgAgent = /[?&]agent=([A-Z0-9-]+)/.exec(location.search);
+    if (dbgAgent) {
+      NODES3D.forEach(function (n, i) {
+        if (n.kind === 'agent' && n.name === dbgAgent[1]) selNode = i;
       });
     }
     master(Math.min(1, parseFloat(dbg[1])));
