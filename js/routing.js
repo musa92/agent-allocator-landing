@@ -496,9 +496,11 @@
   var NODES3D = [{ id: 'CORE', name: 'ALLOCATOR', x: 0, y: 0, z: 0, r: 24, c: '#ffb400', kind: 'core', ph: 0 }];
   var EDGES3D = [];
   DEPTS3D.forEach(function (d, dj) {
+    var dh = nameHash(d.dept);
     var hub = {
       id: nameId(d.dept), name: d.dept, kind: 'hub', c: d.c, r: 15,
-      x: d.pos[0], y: d.pos[1], z: d.pos[2], ph: dj * 1.7
+      x: d.pos[0], y: d.pos[1], z: d.pos[2], ph: dj * 1.7,
+      qd: 4 + dh % 18, ld: 46 + (dh >>> 5) % 34, sla: 92 + (dh >>> 9) % 8
     };
     NODES3D.push(hub);
     var hi = NODES3D.length - 1;
@@ -568,12 +570,14 @@
      → parting pull-back over the desk. Targets are node names. */
   var CAMK = [
     { d: 0.00, n: null, cz: 980 },
-    { d: 0.30, n: null, cz: 280 },
-    { d: 0.44, n: 'SECURITY', cz: -140 },
-    { d: 0.50, n: 'CIPHER', cz: -300 },
-    { d: 0.62, n: 'CIPHER', cz: -300 },
-    { d: 0.70, n: 'ORACLE', cz: -270 },
-    { d: 0.90, n: 'ORACLE', cz: -300 },
+    { d: 0.28, n: null, cz: 280 },
+    { d: 0.40, n: 'SECURITY', cz: -140 },
+    { d: 0.45, n: 'CIPHER', cz: -300 },
+    { d: 0.56, n: 'CIPHER', cz: -300 },
+    { d: 0.63, n: 'TALLY', cz: -280 },
+    { d: 0.73, n: 'TALLY', cz: -300 },
+    { d: 0.79, n: 'ORACLE', cz: -270 },
+    { d: 0.91, n: 'ORACLE', cz: -300 },
     { d: 1.00, n: 'COVERAGE DESK', cz: 80 }
   ];
   CAMK.forEach(function (kf) { kf.i = kf.n ? findNode(kf.n) : -1; });
@@ -595,14 +599,24 @@
   }
   /* agent dossiers shown during the close-up holds */
   var CLOSEUPS = [
-    { n: 'CIPHER', d0: 0.47, d1: 0.63, dept: 'SECURITY', model: 'LLAMA-8B · ON-PREM',
+    { n: 'CIPHER', d0: 0.42, d1: 0.57, dept: 'SECURITY', model: 'LLAMA-8B · ON-PREM',
       task: 'SCANNING 1,204 EGRESS EVENTS / MIN', tok: 'TOK TODAY 412K RAW → 9K BILLED · −98%',
       auto: 'TRUSTED', blocks: 4 },
-    { n: 'ORACLE', d0: 0.71, d1: 0.91, dept: 'COVERAGE DESK', model: 'GPT 5.6 + FABLE 5 VERIFY',
+    { n: 'TALLY', d0: 0.64, d1: 0.74, dept: 'PAYROLL', model: 'DEEPSEEK-V3.2 · BATCH',
+      task: 'PAYCYCLE — 2,412 STUBS RECONCILED', tok: 'TOK TODAY 1.8M RAW → 210K BILLED · −88%',
+      auto: 'SUPERVISED', blocks: 3 },
+    { n: 'ORACLE', d0: 0.80, d1: 0.92, dept: 'COVERAGE DESK', model: 'GPT 5.6 + FABLE 5 VERIFY',
       task: 'DEEP RESEARCH — NVDA MOAT & CAPEX CYCLE', tok: 'TOK TODAY 6.1M RAW → 2.2M BILLED · −64%',
       auto: 'PROBATION', blocks: 2 }
   ];
   CLOSEUPS.forEach(function (cu) { cu.i = findNode(cu.n); });
+  /* real traffic riding the wires — a pulse picks a new message each lap */
+  var MSGS3D = [
+    'REQ VERIFY CLAIM#0124', 'GRANT $0.40 BUDGET', 'CTX 12K TOK', 'ESC → HUMAN DESK',
+    'CACHE HIT · 0.1×', 'ID AUTH OK', 'ROUTE → QWEN-72B', 'P&L +$12.40',
+    'HALT BLAST-R:6', 'AUDIT PASS 96.8%', 'TOK −58%', 'BUDGET 74% USED',
+    'CKPT SAVED t+041', 'REVALIDATE WACC', 'SPAWN SUBAGENT', 'LEASE GPU 40S'
+  ];
 
   function sizeDepth() {
     if (!depthCanvas) return;
@@ -675,11 +689,18 @@
       var lg = g.createLinearGradient(a.x, a.y, b.x, b.y);
       lg.addColorStop(0, na.c); lg.addColorStop(1, nb.c);
       g.strokeStyle = lg;
-      g.globalAlpha = ((trunk ? 0.24 : 0.12) + 0.26 * depth) * k;
+      g.globalAlpha = ((trunk ? 0.26 : 0.14) + 0.26 * depth) * k;
       g.lineWidth = (trunk ? 1.7 : 1.0) * depth;
+      if (!trunk) {
+        /* secondary channels are marching dotted lines — traffic direction */
+        g.setLineDash([2.2 * depth + 0.6, 6.5 * depth + 2.5]);
+        g.lineDashOffset = -((t * 0.022) % 1000);
+      }
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      g.setLineDash([]);
       var nPulse = trunk ? 3 : 1;
       for (var j = 0; j < nPulse; j++) {
+        var cyc = Math.floor((t * 0.00022) + j / nPulse + ei * 0.173);
         var pt = ((t * 0.00022) + j / nPulse + ei * 0.173) % 1;
         var pp = proj({
           x: na.x + (nb.x - na.x) * pt,
@@ -687,9 +708,21 @@
           z: na.z + (nb.z - na.z) * pt
         });
         if (!pp) continue;
-        g.globalAlpha = 0.85 * Math.sin(Math.PI * pt) * k;
+        var pa2 = Math.sin(Math.PI * pt) * k;
+        /* halo + core — the packet */
+        g.globalAlpha = 0.28 * pa2;
         g.fillStyle = nb.c;
+        g.beginPath(); g.arc(pp.x, pp.y, (trunk ? 5 : 3.8) * pp.s, 0, 6.2832); g.fill();
+        g.globalAlpha = 0.9 * pa2;
         g.beginPath(); g.arc(pp.x, pp.y, (trunk ? 2.4 : 1.8) * pp.s, 0, 6.2832); g.fill();
+        /* every packet carries a payload — some are close enough to read.
+           Each lap of the wire picks the next message off the queue. */
+        if ((ei + j) % 3 === 0 && pp.s > 0.5) {
+          g.globalAlpha = 0.8 * pa2;
+          g.textAlign = 'left';
+          g.font = '7px "Space Mono", monospace';
+          g.fillText(MSGS3D[(ei * 3 + j + cyc) % MSGS3D.length], pp.x + 8, pp.y - 5);
+        }
       }
     });
     g.globalAlpha = 1;
@@ -750,6 +783,14 @@
           g.fillStyle = 'rgba(139,136,124,0.9)';
           g.font = Math.round(8.5 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
           g.fillText(n.kind === 'core' ? 'CAPITAL · VERIFICATION · AUTONOMY' : n.id, p.x, p.y + r + 28);
+          if (n.kind === 'hub') {
+            /* live desk stats under every harness — load breathes */
+            var hl = n.ld + Math.round(6 * Math.sin(t * 0.0009 + n.ph));
+            g.globalAlpha = la * 0.85;
+            g.fillStyle = n.c;
+            g.font = '700 ' + Math.round(7.5 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
+            g.fillText('LOAD ' + hl + '% · Q ' + n.qd + ' · SLA 99.' + n.sla + '%', p.x, p.y + r + 40);
+          }
         }
       }
       g.globalAlpha = 1;
@@ -759,10 +800,20 @@
        like tapping nodes on an ops console. They spawn on the wide
        shot; the close-up dossiers take over once we're inside. */
     if (t > 0 && k > 0.22) {
-      if (t - popLast > 620 && k < 0.4) {
-        popLast = t; popN++;
-        POPS.push({ i: AGENT_IDX[(popN * 11 + 5) % AGENT_IDX.length], t0: t, m: popN % 4 });
-        if (POPS.length > 7) POPS.shift();
+      if (t - popLast > 540) {
+        /* on the wide shot anyone can speak; inside a harness only the
+           agents around the camera surface their numbers */
+        var cands = [];
+        AGENT_IDX.forEach(function (i2) {
+          var pi = P[i2];
+          if (pi && pi.s > (k < 0.4 ? 0.2 : 0.72) &&
+              pi.x > 40 && pi.x < w - 40 && pi.y > 60 && pi.y < vh - 90) cands.push(i2);
+        });
+        if (cands.length) {
+          popLast = t; popN++;
+          POPS.push({ i: cands[(popN * 11 + 5) % cands.length], t0: t, m: popN % 4 });
+          if (POPS.length > 7) POPS.shift();
+        }
       }
       POPS.forEach(function (pop) {
         var lt = (t - pop.t0) / 2100;
@@ -905,11 +956,13 @@
     if (hud > 0.02) {
       /* the dive narration, bottom-center */
       var cap =
-        k < 0.32 ? 'BEHIND THE GLASS — EVERY DESK RUNS A HARNESS · EVERY AGENT IS METERED, VERIFIED, AND EARNS AUTONOMY'
-        : k < 0.47 ? 'ENTERING HARNESS · SECURITY — 5 AGENTS ON WATCH'
-        : k < 0.64 ? 'CLOSE-UP — CIPHER · LOCAL MODEL, <$0.01 A TASK, TRUSTED AUTONOMY'
-        : k < 0.71 ? 'CROSSING THE BACKPLANE → COVERAGE DESK'
-        : k < 0.92 ? 'CLOSE-UP — ORACLE · FRONTIER SPEND ONLY WHERE THE BLAST RADIUS EARNS IT'
+        k < 0.30 ? 'BEHIND THE GLASS — EVERY DESK RUNS A HARNESS · EVERY AGENT IS METERED, VERIFIED, AND EARNS AUTONOMY'
+        : k < 0.42 ? 'ENTERING HARNESS · SECURITY — 5 AGENTS ON WATCH'
+        : k < 0.58 ? 'CLOSE-UP — CIPHER · LOCAL MODEL, <$0.01 A TASK, TRUSTED AUTONOMY'
+        : k < 0.64 ? 'CROSSING → PAYROLL'
+        : k < 0.75 ? 'CLOSE-UP — TALLY · 2,412 STUBS A CYCLE, CACHE DOES THE HEAVY LIFTING'
+        : k < 0.80 ? 'CROSSING THE BACKPLANE → COVERAGE DESK'
+        : k < 0.93 ? 'CLOSE-UP — ORACLE · FRONTIER SPEND ONLY WHERE THE BLAST RADIUS EARNS IT'
         : 'EVERY DESK, EVERY AGENT — ONE ALLOCATOR';
       g.globalAlpha = hud;
       g.textAlign = 'center';
