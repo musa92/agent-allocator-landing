@@ -800,7 +800,7 @@
        like tapping nodes on an ops console. They spawn on the wide
        shot; the close-up dossiers take over once we're inside. */
     if (t > 0 && k > 0.22) {
-      if (t - popLast > 540) {
+      if (t - popLast > 540 && k < 0.9) { // quiet on the closing shot
         /* on the wide shot anyone can speak; inside a harness only the
            agents around the camera surface their numbers */
         var cands = [];
@@ -912,7 +912,7 @@
        bill down below on the wide shot; captions narrate the dive. */
     var hud = clamp((k - 0.3) / 0.4);
     /* fleet boards yield to the dive, then return for the zoom-out finale */
-    var fleet = hud * Math.max(1 - clamp((k - 0.32) / 0.1), clamp((k - 0.93) / 0.06));
+    var fleet = hud * Math.max(1 - clamp((k - 0.32) / 0.1), clamp((k - 0.9) / 0.05));
     if (hud > 0.02) {
       g.globalAlpha = hud;
       g.textAlign = 'left';
@@ -963,7 +963,7 @@
         : k < 0.64 ? 'CROSSING → PAYROLL'
         : k < 0.75 ? 'CLOSE-UP — TALLY · 2,412 STUBS A CYCLE, CACHE DOES THE HEAVY LIFTING'
         : k < 0.80 ? 'CROSSING THE BACKPLANE → COVERAGE DESK'
-        : k < 0.93 ? 'CLOSE-UP — ORACLE · FRONTIER SPEND ONLY WHERE THE BLAST RADIUS EARNS IT'
+        : k < 0.9 ? 'CLOSE-UP — ORACLE · FRONTIER SPEND ONLY WHERE THE BLAST RADIUS EARNS IT'
         : 'EVERY DESK, EVERY AGENT — ONE ALLOCATOR';
       g.globalAlpha = hud;
       g.textAlign = 'center';
@@ -984,7 +984,11 @@
     flipNow = d > 0 ? clamp(d / 0.6) : 0; // the door finishes opening by d=0.6
     renderShell();
     applyTilt();
-    depthCanvas.style.opacity = clamp(d * 1.8).toFixed(3);
+    /* fade in on entry, and fade to black at the very end — the act
+       closes cleanly instead of leaving the swarm hanging under the
+       next section as the pin releases */
+    depthCanvas.style.opacity =
+      (clamp(d * 1.8) * (1 - clamp((d - 0.95) / 0.05))).toFixed(3);
     var on = d > 0.01;
     if (on && !depthOn) { depthOn = true; depthRAF = requestAnimationFrame(tickDepth); }
     else if (!on && depthOn) {
