@@ -360,7 +360,7 @@
     laptop.style.transform =
       'scale(' + scale.toFixed(4) + ') rotateX(' + rotX.toFixed(2) + 'deg)' +
       ' rotateY(' + (-86 * f).toFixed(2) + 'deg)';
-    laptop.style.opacity = (1 - clamp((flipNow - 0.55) / 0.35)).toFixed(3);
+    laptop.style.opacity = (1 - clamp((flipNow - 0.4) / 0.3)).toFixed(3);
     laptop.style.visibility = flipNow >= 0.98 ? 'hidden' : 'visible';
     /* once the door is swinging, let clicks through to the backplane */
     laptop.style.pointerEvents = flipNow > 0.3 ? 'none' : '';
@@ -691,6 +691,19 @@
       auto: 'PROBATION', blocks: 2 }
   ];
   CLOSEUPS.forEach(function (cu) { cu.i = findNode(cu.n); });
+  /* ── the hand-off: as the door opens, the six registry rows are cut
+     off the page and fly as work packets to their agents in the
+     harness. Scrub-driven — rewinding sucks them back onto the page. */
+  var CHIPS3D = [
+    { l: '01 INGEST 10-K/10-Q', s: '312K TOK', c: '#22c55e', tgt: 'SCRIBE' },
+    { l: '02 NORMALIZE XBRL', s: '60K TOK', c: '#8b887c', tgt: 'JANITOR' },
+    { l: '03 HISTORICALS', s: '140K TOK', c: '#22c55e', tgt: 'MASON' },
+    { l: '04 DEEP RESEARCH', s: '1.4M TOK', c: '#22d3ee', tgt: 'ORACLE' },
+    { l: '05 DCF & WACC', s: '260K TOK', c: '#22d3ee', tgt: 'ABACUS-PRIME' },
+    { l: '06 MEMO + AUDIT', s: '120K TOK', c: '#22c55e', tgt: 'QUILL' }
+  ];
+  CHIPS3D.forEach(function (c) { c.i = findNode(c.tgt); });
+
   /* real traffic riding the wires — a pulse picks a new message each lap */
   var MSGS3D = [
     'REQ VERIFY CLAIM#0124', 'GRANT $0.40 BUDGET', 'CTX 12K TOK', 'ESC → HUMAN DESK',
@@ -947,6 +960,77 @@
       }
       g.globalAlpha = 1;
     });
+
+    /* work packets — the registry rows peel off the swinging page and
+       fly curved paths onto their coverage-desk agents. Source anchors
+       track the live DOM rows (mid door-swing), targets track the
+       orbiting nodes, so both ends of every flight are alive. */
+    if (k > 0.1 && k < 0.48 && agents.length) {
+      var cRect = depthCanvas.getBoundingClientRect();
+      CHIPS3D.forEach(function (ch, ci2) {
+        var u = (k - (0.12 + ci2 * 0.022)) / 0.16;
+        if (u <= 0 || u > 1.3) return;
+        var tp = P[ch.i];
+        if (!tp) return;
+        var uu = Math.min(1, u);
+        var e2 = uu * uu * (3 - 2 * uu);
+        var sx = w * 0.3, sy = vh * (0.25 + ci2 * 0.1);
+        var row = agents[ci2];
+        if (row) {
+          var rr2 = row.getBoundingClientRect();
+          if (rr2.width) {
+            sx = rr2.left + rr2.width * 0.5 - cRect.left;
+            sy = rr2.top + rr2.height * 0.5 - cRect.top;
+          }
+        }
+        /* quadratic arc with alternating sweep, easing home */
+        var mxx = (sx + tp.x) / 2 + ((ci2 % 2) ? 1 : -1) * (90 + ci2 * 26);
+        var myy = (sy + tp.y) / 2 - 80;
+        var i1 = 1 - e2;
+        var bx = i1 * i1 * sx + 2 * i1 * e2 * mxx + e2 * e2 * tp.x;
+        var by = i1 * i1 * sy + 2 * i1 * e2 * myy + e2 * e2 * tp.y;
+        var sc = 1 - 0.62 * e2;
+        var al = (uu < 0.06 ? uu / 0.06 : 1) * (uu > 0.9 ? (1 - uu) / 0.1 : 1);
+        if (al > 0.02) {
+          var cwp = 150 * sc, chp = 30 * sc;
+          /* motion streak behind the packet */
+          g.globalAlpha = al * 0.3;
+          g.strokeStyle = ch.c; g.lineWidth = 1.4 * sc;
+          g.beginPath();
+          g.moveTo(bx - (tp.x - sx) * 0.045, by - (tp.y - sy) * 0.045);
+          g.lineTo(bx, by);
+          g.stroke();
+          /* the chip — a cut-out slice of the registry row */
+          g.globalAlpha = al * 0.95;
+          g.fillStyle = 'rgba(8,9,12,0.95)';
+          g.fillRect(bx - cwp / 2, by - chp / 2, cwp, chp);
+          g.strokeStyle = ch.c; g.lineWidth = 1;
+          g.strokeRect(bx - cwp / 2 + 0.5, by - chp / 2 + 0.5, cwp - 1, chp - 1);
+          g.fillStyle = ch.c;
+          g.fillRect(bx - cwp / 2, by - chp / 2, 2, chp);
+          if (sc > 0.48) {
+            g.textAlign = 'left';
+            g.fillStyle = '#ebe8e0';
+            g.font = '700 ' + Math.max(6.5, 9 * sc).toFixed(1) + 'px "Space Mono", monospace';
+            g.fillText(ch.l, bx - cwp / 2 + 8 * sc, by - 2 * sc);
+            g.fillStyle = '#8b887c';
+            g.font = Math.max(6, 7.5 * sc).toFixed(1) + 'px "Space Mono", monospace';
+            g.fillText(ch.s, bx - cwp / 2 + 8 * sc, by + 9 * sc);
+          }
+        }
+        /* landing flash — the agent absorbs the packet */
+        if (u > 0.86) {
+          var fl = Math.min(1, (u - 0.86) / 0.34);
+          g.globalAlpha = (1 - fl) * 0.85;
+          g.strokeStyle = ch.c; g.lineWidth = 1.6;
+          g.beginPath(); g.arc(tp.x, tp.y, 6 + fl * 34, 0, 6.2832); g.stroke();
+          g.globalAlpha = (1 - fl) * 0.35;
+          g.fillStyle = ch.c;
+          g.beginPath(); g.arc(tp.x, tp.y, 5 + fl * 12, 0, 6.2832); g.fill();
+        }
+        g.globalAlpha = 1;
+      });
+    }
 
     /* telemetry popups — real per-agent numbers surface and fade,
        like tapping nodes on an ops console. They spawn on the wide
@@ -1231,7 +1315,7 @@
     if (hud > 0.02) {
       /* the dive narration, bottom-center */
       var cap =
-        k < 0.30 ? 'BEHIND THE GLASS — EVERY DESK RUNS A HARNESS · EVERY AGENT IS METERED, VERIFIED, AND EARNS AUTONOMY'
+        k < 0.34 ? 'CUTTING THE ORDER — SIX WORK PACKETS FLY TO THEIR AGENTS ON THE COVERAGE DESK'
         : k < 0.42 ? 'ENTERING HARNESS · SECURITY — 5 AGENTS ON WATCH'
         : k < 0.58 ? 'CLOSE-UP — CIPHER · LOCAL MODEL, <$0.01 A TASK, TRUSTED AUTONOMY'
         : k < 0.64 ? 'CROSSING → PAYROLL'
@@ -1255,14 +1339,16 @@
   function updateDepth(d) {
     if (!depthCanvas || REDUCED) return;
     depthK = d;
-    flipNow = d > 0 ? clamp(d / 0.6) : 0; // the door finishes opening by d=0.6
+    flipNow = d > 0 ? clamp(d / 0.35) : 0; // a quick, decisive door-swing
     renderShell();
     applyTilt();
     /* fade in on entry, and fade to black at the very end — the act
        closes cleanly instead of leaving the swarm hanging under the
        next section as the pin releases */
+    /* fast fade-in so the work packets are visible the moment they
+       peel off the opening door */
     depthCanvas.style.opacity =
-      (clamp(d * 1.8) * (1 - clamp((d - 0.95) / 0.05))).toFixed(3);
+      (clamp(d * 5) * (1 - clamp((d - 0.95) / 0.05))).toFixed(3);
     depthCanvas.style.pointerEvents = d > 0.22 && d < 0.97 ? 'auto' : 'none';
     /* page2's own pointer-events:auto would re-enable clicks inside the
        flipped laptop and shadow the canvas — park it during the act */
