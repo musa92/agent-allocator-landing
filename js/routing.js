@@ -362,6 +362,8 @@
       ' rotateY(' + (-86 * f).toFixed(2) + 'deg)';
     laptop.style.opacity = (1 - clamp((flipNow - 0.55) / 0.35)).toFixed(3);
     laptop.style.visibility = flipNow >= 0.98 ? 'hidden' : 'visible';
+    /* once the door is swinging, let clicks through to the backplane */
+    laptop.style.pointerEvents = flipNow > 0.3 ? 'none' : '';
   }
   function applyZoom(z) {
     zNow = z;
@@ -498,7 +500,7 @@
   DEPTS3D.forEach(function (d, dj) {
     var dh = nameHash(d.dept);
     var hub = {
-      id: nameId(d.dept), name: d.dept, kind: 'hub', c: d.c, r: 15,
+      id: nameId(d.dept), name: d.dept, kind: 'hub', c: d.c, r: 15, di: dj,
       x: d.pos[0], y: d.pos[1], z: d.pos[2], ph: dj * 1.7,
       qd: 4 + dh % 18, ld: 46 + (dh >>> 5) % 34, sla: 92 + (dh >>> 9) % 8
     };
@@ -514,7 +516,7 @@
       var lerp = function (a, b, t) { return a + (b - a) * t; };
       var u1 = ((h >>> 4) % 1000) / 1000, u2 = ((h >>> 12) % 1000) / 1000, u3 = ((h >>> 6) % 1000) / 1000;
       NODES3D.push({
-        id: nameId(nm), name: nm, kind: 'agent', c: d.c, r: 7.5 + (h % 4),
+        id: nameId(nm), name: nm, kind: 'agent', c: d.c, r: 7.5 + (h % 4), di: dj,
         x: hub.x + Math.cos(az) * rad, y: hub.y + el * 95, z: hub.z + Math.sin(az) * rad,
         /* real orbital motion — each agent circles its harness at a
            name-seeded speed and direction */
@@ -567,6 +569,27 @@
     return ms < 1000 ? Math.round(ms) + 'MS' : (ms / 1000).toFixed(1) + 'S';
   }
   var POPS = [], popLast = 0, popN = 0;
+
+  /* ── clickable harnesses — hover highlights, click opens a live
+     crew inspector pinned to the hub. Hit zones are rebuilt from the
+     projected positions every frame, so they track the orbiting world. */
+  var hubHits = [], hoverHub = -1, selHub = -1;
+  if (depthCanvas && !REDUCED) {
+    depthCanvas.addEventListener('pointermove', function (e) {
+      var rc = depthCanvas.getBoundingClientRect();
+      var mx2 = e.clientX - rc.left, my2 = e.clientY - rc.top;
+      hoverHub = -1;
+      for (var hi2 = 0; hi2 < hubHits.length; hi2++) {
+        var hh = hubHits[hi2];
+        var dx = mx2 - hh.x, dy = my2 - hh.y;
+        if (dx * dx + dy * dy < (hh.r + 14) * (hh.r + 14)) { hoverHub = hh.i; break; }
+      }
+      depthCanvas.style.cursor = hoverHub >= 0 ? 'pointer' : '';
+    });
+    depthCanvas.addEventListener('click', function () {
+      selHub = hoverHub >= 0 ? (selHub === hoverHub ? -1 : hoverHub) : -1;
+    });
+  }
 
   /* ── the dive path — camera keyframes over the depth act ──
      wide arrival → into the SECURITY harness → close-up CIPHER →
@@ -642,6 +665,7 @@
 
     var k = depthK;
     var t = REDUCED ? 0 : now;
+    hubHits.length = 0; // hit zones rebuilt from this frame's projection
     /* step the orbits before the camera samples its target — close-up
        holds then track the moving agent */
     NODES3D.forEach(function (n) {
@@ -814,6 +838,17 @@
         g.beginPath(); g.arc(p.x, p.y, r * 2.0, sa, sa + 0.85); g.stroke();
         g.lineWidth = 1.4;
       }
+      if (n.kind === 'hub') {
+        hubHits.push({ i: i, x: p.x, y: p.y, r: r });
+        if (i === hoverHub || i === selHub) {
+          /* hover / selected — the harness lights up */
+          g.globalAlpha = (i === selHub ? 0.85 : 0.55) * k;
+          g.strokeStyle = n.c; g.lineWidth = 1.6;
+          g.beginPath(); g.arc(p.x, p.y, r * 1.55, 0, 6.2832); g.stroke();
+          g.globalAlpha = 0.2 * k;
+          g.beginPath(); g.arc(p.x, p.y, r * 2.1, 0, 6.2832); g.stroke();
+        }
+      }
       var lk = clamp((k - 0.35) / 0.4);
       if (n.kind === 'agent') {
         /* close agents show their name; the very close also flash the ID */
@@ -974,6 +1009,62 @@
       g.globalAlpha = 1;
     });
 
+    /* harness inspector — click a hub, meet the crew */
+    if (selHub >= 0) {
+      var hn = NODES3D[selHub], hp3 = P[selHub];
+      if (hp3) {
+        var crew2 = [];
+        NODES3D.forEach(function (n2, i2) {
+          if (n2.kind === 'agent' && n2.di === hn.di) crew2.push(n2);
+        });
+        var pw = 318, phh = 64 + crew2.length * 15;
+        var hnR = hn.r * hp3.s * 1.35;
+        var px2 = hp3.x + hnR + 40;
+        if (px2 + pw > w - 16) px2 = hp3.x - hnR - 40 - pw;
+        px2 = Math.max(16, Math.min(w - pw - 16, px2));
+        var py2 = Math.max(52, Math.min(vh - phh - 40, hp3.y - phh / 2));
+        g.globalAlpha = 0.55 * k;
+        g.strokeStyle = hn.c; g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(hp3.x + (px2 > hp3.x ? hnR : -hnR), hp3.y);
+        g.lineTo(px2 > hp3.x ? px2 : px2 + pw, py2 + phh / 2);
+        g.stroke();
+        g.globalAlpha = 0.95 * k;
+        g.fillStyle = 'rgba(8,9,12,0.95)';
+        g.fillRect(px2, py2, pw, phh);
+        g.strokeRect(px2 + 0.5, py2 + 0.5, pw - 1, phh - 1);
+        g.fillStyle = hn.c; g.fillRect(px2, py2, 2, phh);
+        g.textAlign = 'left';
+        g.fillStyle = hn.c;
+        g.font = '700 11px "Space Mono", monospace';
+        g.fillText('HARNESS · ' + hn.name, px2 + 12, py2 + 19);
+        g.textAlign = 'right';
+        g.fillStyle = '#8b887c';
+        g.font = '8px "Space Mono", monospace';
+        g.fillText(hn.id + ' · ✕ CLICK TO CLOSE', px2 + pw - 10, py2 + 19);
+        g.textAlign = 'left';
+        var hl2 = hn.ld + Math.round(6 * Math.sin(t * 0.0009 + hn.ph));
+        g.font = '9px "Space Mono", monospace';
+        g.fillText('LOAD ' + hl2 + '% · QUEUE ' + hn.qd + ' · SLA 99.' + hn.sla + '% · CREW ' + crew2.length, px2 + 12, py2 + 35);
+        g.strokeStyle = 'rgba(139,136,124,0.25)';
+        g.beginPath(); g.moveTo(px2 + 12, py2 + 42); g.lineTo(px2 + pw - 12, py2 + 42); g.stroke();
+        crew2.forEach(function (cn, ri) {
+          var ry2 = py2 + 56 + ri * 15;
+          g.fillStyle = '#ebe8e0';
+          g.font = '700 9px "Space Mono", monospace';
+          g.fillText(cn.name, px2 + 12, ry2);
+          g.fillStyle = '#8b887c';
+          g.font = '8px "Space Mono", monospace';
+          g.fillText(cn.id.slice(4), px2 + 102, ry2);
+          g.fillText('P95 ' + fmtMs(cn.lat), px2 + 145, ry2);
+          g.fillText(cn.cost < 0.01 ? '<$0.01' : '$' + cn.cost.toFixed(2), px2 + 213, ry2);
+          g.fillStyle = cn.cache > 85 ? '#22c55e' : '#8b887c';
+          g.fillText('C' + Math.round(cn.cache) + '%', px2 + 268, ry2);
+        });
+        g.globalAlpha = 1;
+      }
+    }
+
     /* HUD — live totals up top, fleet-wide distributions + the token
        bill down below on the wide shot; captions narrate the dive. */
     var hud = clamp((k - 0.3) / 0.4);
@@ -985,6 +1076,13 @@
       g.fillStyle = '#ffb400';
       g.font = '700 11px "Space Mono", monospace';
       g.fillText('BKPL <GO> — SWARM BACKPLANE · ' + DEPTS3D.length + ' HARNESSES · LIVE TOPOLOGY', 24, 34);
+      if (selHub < 0) {
+        g.fillStyle = '#8b887c';
+        g.font = '8.5px "Space Mono", monospace';
+        g.globalAlpha = hud * (0.55 + 0.3 * Math.sin(t * 0.002));
+        g.fillText('CLICK A HARNESS TO INSPECT ITS CREW', 24, 50);
+        g.globalAlpha = hud;
+      }
       g.textAlign = 'right';
       g.fillStyle = '#8b887c';
       g.font = '10px "Space Mono", monospace';
@@ -1055,10 +1153,13 @@
        next section as the pin releases */
     depthCanvas.style.opacity =
       (clamp(d * 1.8) * (1 - clamp((d - 0.95) / 0.05))).toFixed(3);
+    depthCanvas.style.pointerEvents = d > 0.22 && d < 0.97 ? 'auto' : 'none';
     var on = d > 0.01;
     if (on && !depthOn) { depthOn = true; depthRAF = requestAnimationFrame(tickDepth); }
     else if (!on && depthOn) {
       depthOn = false;
+      selHub = -1; hoverHub = -1;
+      depthCanvas.style.cursor = '';
       if (depthRAF) cancelAnimationFrame(depthRAF);
       if (depthCtx) {
         depthCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1094,6 +1195,12 @@
   var dbg = /[?&]rtp=([\d.]+)/.exec(location.search);
   if (dbg) {
     document.documentElement.classList.add('rtp-debug');
+    var dbgSel = /[?&]sel=(\d+)/.exec(location.search);
+    if (dbgSel) {
+      NODES3D.forEach(function (n, i) {
+        if (n.kind === 'hub' && n.di === parseInt(dbgSel[1], 10)) selHub = i;
+      });
+    }
     master(Math.min(1, parseFloat(dbg[1])));
     return;
   }
