@@ -590,3 +590,234 @@ body.no-motion [data-reveal] { opacity: 1; transform: none; }
   #research, #system { padding: 80px 0 64px; }
   .lt-row { grid-template-columns: 52px 86px 1fr; gap: 10px; font-size: 0.68rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Routing terminal — pinned scroll-scrub Bloomberg-style screen
+   (diegetic object: keeps its own amber chrome on the dark set)
+═══════════════════════════════════════════════════════════ */
+#routing { position: relative; z-index: 1; }
+.rterm-stage {
+  position: relative; z-index: 3;
+  margin-top: 56px; padding: 96px 0 24px; min-height: 100vh;
+}
+/* full-bleed backdrop: while pinned, nothing scrolls through behind the screen */
+.rterm-stage::before {
+  content: ""; position: absolute; top: 0; bottom: 0;
+  left: 50%; transform: translateX(-50%); width: 100vw;
+  background: var(--bg); z-index: -1;
+}
+.rterm {
+  position: relative; border: 1px solid var(--line-2); background: #08090c;
+  font-family: var(--font-mono); overflow: hidden;
+}
+.rterm-chrome {
+  display: flex; align-items: center; gap: 12px; padding: 9px 16px; flex-wrap: wrap;
+  background: linear-gradient(180deg, #f7a600, #dd8b00); color: #171104;
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.1em; white-space: nowrap;
+}
+.rterm-chrome .rc-go { font-weight: 700; }
+.rterm-chrome .rc-right { margin-left: auto; font-size: 0.58rem; opacity: 0.75; }
+.rterm-cmd {
+  display: flex; align-items: center; gap: 9px; padding: 12px 16px 10px;
+  color: #ffb400; font-size: 0.8rem; letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(235,232,224,0.08);
+}
+.rterm-cmd .rc-prompt { color: var(--text-3); }
+.rt-cursor { display: inline-block; width: 8px; height: 15px; background: #ffb400; }
+@media (prefers-reduced-motion: no-preference) {
+  .rt-cursor { animation: rt-blink 1s steps(1) infinite; }
+  @keyframes rt-blink { 50% { opacity: 0; } }
+}
+.rterm-order {
+  margin: 14px 16px 0; padding: 8px 12px;
+  border: 1px solid rgba(235,232,224,0.14); border-left: 2px solid #ffb400;
+  background: var(--bg-2); font-size: 0.62rem; letter-spacing: 0.08em; color: var(--text-2);
+  opacity: 0; transform: translateY(6px); transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.rterm-order b { color: var(--text); font-weight: 700; }
+.rterm-order.on { opacity: 1; transform: none; }
+.rterm-board {
+  position: relative; display: grid; align-items: start;
+  grid-template-columns: minmax(0, 1.7fr) clamp(48px, 6vw, 110px) minmax(0, 0.85fr);
+  padding: 14px 16px 6px;
+}
+.rterm-wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.rterm-steps { grid-column: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rstep {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) 74px minmax(126px, auto);
+  gap: 12px; align-items: center; padding: 8px 12px;
+  border: 1px solid rgba(235,232,224,0.1); background: var(--bg-2);
+  opacity: 0.14; transform: translateX(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+}
+.rstep.on { opacity: 1; transform: none; }
+.rstep .rs-i { font-size: 0.58rem; color: var(--text-3); }
+.rstep .rs-body { min-width: 0; }
+.rstep .rs-body b { display: block; font-family: var(--font-body); font-size: 0.78rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rstep .rs-body i { display: block; font-style: normal; font-size: 0.6rem; letter-spacing: 0.05em; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rstep .rs-risk { height: 4px; background: var(--bg-3); overflow: hidden; }
+.rstep .rs-risk i { display: block; height: 100%; width: 0; background: #22c55e; }
+.rstep[data-risk^="0.3"] .rs-risk i, .rstep[data-risk^="0.4"] .rs-risk i { background: #ffb400; }
+.rstep.hi .rs-risk i { background: #ff5f57; box-shadow: 0 0 8px rgba(255,95,87,0.5); }
+.rstep .rs-chip {
+  font-size: 0.56rem; font-weight: 700; letter-spacing: 0.08em; text-align: right;
+  opacity: 0; transform: translateY(6px); transition: opacity 0.3s ease, transform 0.3s ease;
+  white-space: nowrap;
+}
+.rstep .rs-chip em { font-style: normal; display: block; font-weight: 400; color: var(--text-3); margin-top: 2px; }
+.rstep.routed .rs-chip { opacity: 1; transform: none; }
+.rs-chip.t-frontier { color: var(--accent); }
+.rs-chip.t-open { color: #22c55e; }
+.rs-chip.t-local { color: var(--text-2); }
+.rstep.routed[data-tier="frontier"] { border-color: rgba(34,211,238,0.45); }
+.rstep.routed[data-tier="open"] { border-color: rgba(34,197,94,0.4); }
+.rstep.routed[data-tier="local"] { border-color: rgba(235,232,224,0.28); }
+.rterm-models { grid-column: 3; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rmodel {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px;
+  border: 1px solid rgba(235,232,224,0.1); background: var(--bg-2);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.rmodel .rm-t { font-size: 0.54rem; letter-spacing: 0.16em; color: var(--text-3); }
+.rmodel .rm-m { font-family: var(--font-body); font-size: 0.76rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rmodel .rm-c { font-size: 0.56rem; letter-spacing: 0.04em; color: var(--text-2); }
+.rmodel .rm-n { font-size: 0.58rem; letter-spacing: 0.08em; color: var(--text-3); margin-top: 4px; }
+.rmodel.active[data-tier="frontier"] { border-color: var(--accent); box-shadow: 0 0 16px rgba(34,211,238,0.2); }
+.rmodel.active[data-tier="frontier"] .rm-n { color: var(--accent); }
+.rmodel.active[data-tier="open"] { border-color: #22c55e; box-shadow: 0 0 16px rgba(34,197,94,0.18); }
+.rmodel.active[data-tier="open"] .rm-n { color: #22c55e; }
+.rmodel.active[data-tier="local"] { border-color: rgba(235,232,224,0.4); }
+.rmodel.active[data-tier="local"] .rm-n { color: var(--text-2); }
+.rterm-foot { margin: 10px 16px 0; padding-top: 16px; border-top: 1px solid rgba(235,232,224,0.08); }
+.rt-msg {
+  padding: 12px 16px 14px; font-family: var(--font-mono);
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; color: #ffb400;
+}
+.rt-msg.done { color: #22c55e; }
+@media (max-width: 900px) {
+  .rterm-board { grid-template-columns: 1fr; }
+  .rterm-wires { display: none; }
+  .rterm-models { grid-column: 1; flex-direction: row; margin-top: 12px; }
+  .rterm-stage { padding-top: 84px; }
+  .rmodel { flex: 1; min-width: 0; }
+  .rmodel .rm-c { display: none; }
+  .rstep { grid-template-columns: 20px minmax(0, 1fr) minmax(96px, auto); }
+  .rstep .rs-risk { display: none; }
+}
+body.no-motion .rstep, body.no-motion .rs-chip, body.no-motion .rterm-order { opacity: 1; transform: none; }
+
+/* routing terminal v2 — active-row scan, model load meters, token tape */
+.rstep.active { border-color: #ffb400; background: rgba(255,180,0,0.05); }
+.rstep.active .rs-i { color: #ffb400; }
+.rm-load { display: block; height: 3px; background: var(--bg-3); margin-top: 7px; overflow: hidden; }
+.rm-load i { display: block; height: 100%; width: 0; transition: width 0.3s ease; }
+.rmodel[data-tier="frontier"] .rm-load i { background: var(--accent); box-shadow: 0 0 8px rgba(34,211,238,0.5); }
+.rmodel[data-tier="open"] .rm-load i { background: #22c55e; }
+.rmodel[data-tier="local"] .rm-load i { background: #8b887c; }
+.rt-msg { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.rt-tokens { color: var(--text-3); font-size: 0.58rem; letter-spacing: 0.1em; font-variant-numeric: tabular-nums; }
+.rt-msg.done .rt-tokens { color: #22c55e; }
+
+/* ops dashboard — live chart strip */
+.dash-kpis { grid-template-columns: repeat(7, 1fr); }
+.dash-charts {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--line);
+}
+.dchart { padding: 12px 16px 10px; border-right: 1px solid var(--line); min-width: 0; }
+.dchart:last-child { border-right: 0; }
+.dch-head {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  font-family: var(--font-mono); font-size: 0.54rem; letter-spacing: 0.14em;
+  color: var(--text-3); margin-bottom: 8px; white-space: nowrap;
+}
+.dch-head .dch-val { color: var(--text); font-size: 0.68rem; letter-spacing: 0.04em; font-variant-numeric: tabular-nums; }
+.dchart canvas { display: block; width: 100%; height: 104px; cursor: crosshair; }
+.dch-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px;
+  font-family: var(--font-mono); font-size: 0.52rem; letter-spacing: 0.1em; color: var(--text-3);
+}
+.dch-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.dch-legend i.ln { height: 2px; vertical-align: 2px; }
+.dch-legend .dch-note { margin-left: auto; color: var(--text-3); font-variant-numeric: tabular-nums; }
+@media (max-width: 1080px) { .dash-kpis { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 900px) { .dash-charts { grid-template-columns: 1fr; } .dchart { border-right: 0; border-bottom: 1px solid var(--line); } }
+
+/* projected labels for the 3D particle story */
+#gl-labels { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+.gl-label {
+  position: fixed; left: 0; top: 0; opacity: 0; white-space: nowrap; text-align: center;
+  font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.14em;
+  color: rgba(235,232,224,0.75); will-change: transform, opacity;
+}
+.gl-label b { display: block; font-weight: 700; font-size: 0.62rem; }
+.gl-label span { display: block; font-size: 0.52rem; letter-spacing: 0.1em; opacity: 0.75; margin-top: 2px; }
+.gl-label.cyan { color: rgba(34,211,238,0.9); }
+.gl-label.red { color: rgba(239,68,68,0.9); }
+.gl-label.dim { color: rgba(235,232,224,0.5); }
+
+/* routing terminal v3 — Bloomberg furniture: security tape, thead, fkey menu */
+.rterm-sec {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 18px;
+  padding: 8px 16px; border-bottom: 1px solid rgba(235,232,224,0.08);
+  font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.06em; color: var(--text-2);
+}
+.sec-tkr { color: #ffb400; font-weight: 700; letter-spacing: 0.1em; }
+.sec-px { color: #fff; font-size: 0.8rem; font-variant-numeric: tabular-nums; transition: color 0.2s ease; }
+.sec-px.up { color: #22c55e; }
+.sec-px.dn { color: #ef4444; }
+.sec-chg { font-variant-numeric: tabular-nums; }
+.sec-chg.up { color: #22c55e; }
+.sec-chg.dn { color: #ef4444; }
+.sec-kv { color: var(--text-3); font-variant-numeric: tabular-nums; }
+.sec-time { margin-left: auto; color: var(--text-3); font-size: 0.54rem; font-variant-numeric: tabular-nums; }
+.rt-thead {
+  display: grid; grid-template-columns: 26px minmax(0, 1fr) 74px minmax(126px, auto); gap: 12px;
+  padding: 0 12px 6px; font-family: var(--font-mono); font-size: 0.5rem;
+  letter-spacing: 0.16em; color: var(--text-3);
+}
+.rt-thead span:last-child { text-align: right; }
+.rt-fkeys {
+  display: flex; flex-wrap: wrap; gap: 4px 22px; padding: 8px 16px;
+  border-top: 1px solid rgba(255,180,0,0.25); background: rgba(255,180,0,0.05);
+  font-family: var(--font-mono); font-size: 0.56rem; letter-spacing: 0.1em; color: #c9a24a;
+}
+.rt-fkeys b { color: #ffb400; font-weight: 700; }
+.rt-fkeys a { color: #c9a24a; }
+.rt-fkeys a:hover b { text-decoration: underline; }
+@media (max-width: 900px) {
+  .sec-time, .sec-kv:nth-of-type(n+3) { display: none; }
+  .rt-thead { grid-template-columns: 20px minmax(0, 1fr) 58px; }
+  .rt-thead span:last-child { display: none; }
+}
+
+/* routing terminal v4 — auction chips, risk gate, lock/rx flashes */
+.rstep { position: relative; overflow: hidden; }
+.rstep.active .rs-chip { opacity: 1; transform: none; }
+.rs-chip.eval, .rs-chip.eval em { color: #ffb400; }
+.rs-chip.eval em { opacity: 0.65; }
+.rmodel { transition: border-color 0.3s ease, box-shadow 0.3s ease, filter 0.25s ease; }
+.rmodel.rx { filter: brightness(1.45); }
+@media (prefers-reduced-motion: no-preference) {
+  .rstep.active::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(100deg, transparent 32%, rgba(255,180,0,0.09) 50%, transparent 68%);
+    animation: row-scan 1.1s linear infinite;
+  }
+  @keyframes row-scan { from { transform: translateX(-70%); } to { transform: translateX(70%); } }
+  .rstep.routed .rs-chip { animation: chip-lock 0.5s ease; }
+  @keyframes chip-lock { 0% { transform: scale(1.16); filter: brightness(1.9); } 100% { transform: scale(1); filter: none; } }
+  .rt-gate-ring { animation: gate-pulse 1.6s ease-in-out infinite; }
+  @keyframes gate-pulse { 50% { opacity: 0.15; } }
+}
+
+/* routing terminal v5 — 3D layer-by-layer build (desktop only) */
+@media (min-width: 900px) {
+  .rterm-stage { perspective: 1500px; }
+  .rterm { overflow: visible; transform-style: preserve-3d; will-change: transform; }
+  .rterm-board { transform-style: preserve-3d; }
+  .rstep, .rmodel { will-change: transform; backface-visibility: hidden; }
+  /* transform + opacity are scrub-driven inline in 3D mode — no transition lag */
+  .rstep { transition: border-color 0.3s ease, background 0.3s ease; }
+  .rmodel { transition: border-color 0.3s ease, box-shadow 0.3s ease, filter 0.25s ease; }
+}

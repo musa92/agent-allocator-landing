@@ -229,69 +229,120 @@
       <span class="eyebrow" data-reveal>03 · Decomposition &amp; routing</span>
       <h2 class="sec-h2" data-split>One task, many minds — <em>priced per step</em></h2>
       <p class="sec-lede" data-reveal>
-        Decompose a comprehensive task and most steps stop needing a frontier model. Reading a
-        5-page PDF routes to an open-source model for cents; the deep-research core routes
-        automatically to <b>GPT&nbsp;5.6 or Fable&nbsp;5</b> — with an independent verifier attached
-        wherever the blast radius is large. Every step is calibrated on the cost × accuracy × speed triangle.
+        Decompose a comprehensive task and most steps stop needing a frontier model. Ingesting
+        600 pages of filings routes to an open-source model for a dime instead of $3.40; the
+        deep-research core routes automatically to <b>GPT&nbsp;5.6 or Fable&nbsp;5</b> — with an independent verifier attached
+        wherever the blast radius is large. Every step is calibrated on the cost × accuracy × speed
+        triangle. <b>Keep scrolling — the terminal decomposes, prices, and routes the order live.</b>
       </p>
 
-      <div class="decomp" data-reveal>
-        <div class="decomp-head">
-          <span class="dh-task">COMPREHENSIVE TASK — INITIATE COVERAGE: NVDA</span>
-          <span class="dh-stamp">DECOMPOSED → 6 STEPS</span>
+      <div class="rterm-stage" id="rterm-stage">
+        <div class="rterm" aria-label="Scroll-driven demo: a coverage task is decomposed into six steps, each routed to a frontier, open-source, or local model based on risk">
+          <div class="rterm-chrome">
+            <span class="rc-key">ALLOC</span><span class="rc-go">&lt;GO&gt;</span>
+            <span class="rc-title">MODEL ROUTER — RISK-WEIGHTED DISPATCH</span>
+            <span class="rc-right">CALIBRATION: COST × ACCURACY × SPEED</span>
+          </div>
+          <div class="rterm-cmd"><span class="rc-prompt">&gt;</span><span id="rt-cmd"></span><span class="rt-cursor" aria-hidden="true"></span></div>
+          <div class="rterm-sec">
+            <span class="sec-tkr">NVDA US EQUITY</span>
+            <b class="sec-px" id="rt-px">187.42</b>
+            <span class="sec-chg up" id="rt-chg">+3.86 +2.10%</span>
+            <span class="sec-kv">REV Q1 $46.1B</span>
+            <span class="sec-kv">GM 74.2%</span>
+            <span class="sec-kv">P/E 41.3</span>
+            <span class="sec-kv">MKT CAP $4.58T</span>
+            <span class="sec-time" id="rt-clock">18-JUL-2026 10:52:14 ET · DELAYED 15 MIN</span>
+          </div>
+          <div class="rterm-order" id="rt-order">TASK ORDER · <b>INITIATE COVERAGE — NVDA US EQUITY</b> · EST <b>~5 DAYS</b> HUMAN / <b>&lt;20 MIN</b> ROUTED · BUDGET CAP <b>$10.00</b></div>
+          <div class="rterm-board" id="rt-board">
+            <div class="rterm-steps" id="rt-steps">
+              <div class="rt-thead" aria-hidden="true"><span>#</span><span>STEP · TOKENS</span><span>RISK</span><span>ROUTE · COST · LAT</span></div>
+              <div class="rstep" data-cost="0.10" data-fcost="3.40" data-risk="0.12" data-tok="312" data-tier="open">
+                <span class="rs-i">01</span>
+                <span class="rs-body"><b>Ingest 10-K &amp; four 10-Qs</b><i>312K tok · ~600 pages of filings → structured notes</i></span>
+                <span class="rs-risk"><i></i></span>
+                <span class="rs-chip t-open">QWEN-72B<em>$0.10 · 48s</em></span>
+              </div>
+              <div class="rstep" data-cost="0.004" data-fcost="0.85" data-risk="0.06" data-tok="60" data-tier="local">
+                <span class="rs-i">02</span>
+                <span class="rs-body"><b>Normalize XBRL &amp; market data</b><i>60K tok · segment tables → clean time series</i></span>
+                <span class="rs-risk"><i></i></span>
+                <span class="rs-chip t-local">LLAMA-8B · LOCAL<em>&lt;$0.01 · 9s</em></span>
+              </div>
+              <div class="rstep" data-cost="0.08" data-fcost="2.15" data-risk="0.34" data-tok="140" data-tier="open">
+                <span class="rs-i">03</span>
+                <span class="rs-body"><b>Rebuild 3-stmt historicals</b><i>140K tok · 12 quarters — ties, checks, restatements</i></span>
+                <span class="rs-risk"><i></i></span>
+                <span class="rs-chip t-open">DEEPSEEK-V3.2<em>$0.08 · 36s</em></span>
+              </div>
+              <div class="rstep hi" data-cost="4.10" data-fcost="6.30" data-risk="0.82" data-tok="1400" data-tier="frontier">
+                <span class="rs-i">04</span>
+                <span class="rs-body"><b>Deep research — moat &amp; capex cycle</b><i>1.4M tok · 110 tool calls · transcripts, sell-side, news</i></span>
+                <span class="rs-risk"><i></i></span>
+                <span class="rs-chip t-frontier">GPT 5.6<em>$4.10 · 7.4m</em></span>
+              </div>
+              <div class="rstep hi" data-cost="2.60" data-fcost="2.60" data-risk="0.90" data-tok="260" data-tier="frontier">
+                <span class="rs-i">05</span>
+                <span class="rs-body"><b>DCF, WACC &amp; sensitivities</b><i>260K tok · valuation core — max blast radius</i></span>
+                <span class="rs-risk"><i></i></span>
+                <span class="rs-chip t-frontier">FABLE 5 + VERIFIER<em>$2.60 · 2.1m</em></span>
+              </div>
+              <div class="rstep" data-cost="0.70" data-fcost="3.10" data-risk="0.44" data-tok="120" data-tier="open">
+                <span class="rs-i">06</span>
+                <span class="rs-body"><b>Draft &amp; fact-check initiation memo</b><i>120K tok · draft, cite every claim, audit pass</i></span>
+                <span class="rs-risk"><i></i></span>
+                <span class="rs-chip t-open">DEEPSEEK + FABLE 5 AUDIT<em>$0.70 · 52s</em></span>
+              </div>
+            </div>
+            <svg class="rterm-wires" id="rt-wires" aria-hidden="true" preserveAspectRatio="none"></svg>
+            <div class="rterm-models" id="rt-models">
+              <div class="rmodel" data-tier="frontier">
+                <span class="rm-t">1) FRONTIER API</span>
+                <span class="rm-m">FABLE 5 · GPT 5.6</span>
+                <span class="rm-c">$10 IN / $50 OUT PER MTOK · 1M CTX</span>
+                <span class="rm-n">0 STEPS</span>
+                <span class="rm-load"><i></i></span>
+              </div>
+              <div class="rmodel" data-tier="open">
+                <span class="rm-t">2) OPEN-SOURCE HOSTED</span>
+                <span class="rm-m">QWEN-72B · DEEPSEEK-V3.2</span>
+                <span class="rm-c">$0.30 IN / $1.10 OUT PER MTOK · 128K CTX</span>
+                <span class="rm-n">0 STEPS</span>
+                <span class="rm-load"><i></i></span>
+              </div>
+              <div class="rmodel" data-tier="local">
+                <span class="rm-t">3) LOCAL INFERENCE</span>
+                <span class="rm-m">LLAMA-8B ON-PREM</span>
+                <span class="rm-c">≈$0 MARGINAL · NO DATA EGRESS</span>
+                <span class="rm-n">0 STEPS</span>
+                <span class="rm-load"><i></i></span>
+              </div>
+            </div>
+          </div>
+          <div class="decomp-foot rterm-foot">
+            <div class="df-col">
+              <span class="df-k">ALL-FRONTIER BASELINE</span>
+              <span class="df-v" id="cost-frontier">$0.00</span>
+              <span class="df-bar"><i id="bar-frontier"></i></span>
+            </div>
+            <div class="df-col us">
+              <span class="df-k">ALLOCATED BY RISK</span>
+              <span class="df-v" id="cost-alloc">$0.00</span>
+              <span class="df-bar"><i id="bar-alloc"></i></span>
+            </div>
+            <div class="df-note" id="df-note">SAME VERIFIED OUTCOME · −59% SPEND</div>
+          </div>
+          <div class="rt-msg" id="rt-msg"><span id="rt-msg-text">AWAITING ORDER — SCROLL TO DECOMPOSE ▼</span><span class="rt-tokens" id="rt-tokens"></span></div>
+          <div class="rt-fkeys">
+            <span><b>1&lt;GO&gt;</b> ROUTE</span>
+            <span><b>2&lt;GO&gt;</b> LEDGER</span>
+            <span><b>3&lt;GO&gt;</b> CONTAIN</span>
+            <span><b>4&lt;GO&gt;</b> AUTONOMY</span>
+            <span><b>5&lt;GO&gt;</b> BUDGETS</span>
+            <a href="https://claude.ai/code/artifact/37f591e4-ef9b-4362-a854-3244aa49cf99" target="_blank" rel="noopener"><b>99&lt;GO&gt;</b> LIVE CONSOLE ↗</a>
+          </div>
         </div>
-        <div class="decomp-steps" id="decomp-steps">
-          <div class="dstep" data-cost="0.03" data-fcost="2.40" data-risk="0.12">
-            <span class="ds-i">01</span>
-            <span class="ds-body"><b>Read a 5-page PDF</b><i>filing excerpt → structured notes</i></span>
-            <span class="ds-risk"><i></i></span>
-            <span class="ds-chip t-open">OPEN-SOURCE · QWEN-72B<em>$0.03</em></span>
-          </div>
-          <div class="dstep" data-cost="0.01" data-fcost="2.10" data-risk="0.08">
-            <span class="ds-i">02</span>
-            <span class="ds-body"><b>Extract &amp; normalize tables</b><i>xbrl → clean time series</i></span>
-            <span class="ds-risk"><i></i></span>
-            <span class="ds-chip t-local">LOCAL · LLAMA-8B<em>$0.01</em></span>
-          </div>
-          <div class="dstep" data-cost="0.11" data-fcost="2.60" data-risk="0.34">
-            <span class="ds-i">03</span>
-            <span class="ds-body"><b>Reconcile 3-stmt historicals</b><i>ties, checks, restatements</i></span>
-            <span class="ds-risk"><i></i></span>
-            <span class="ds-chip t-open">OPEN-SOURCE · DEEPSEEK-V4<em>$0.11</em></span>
-          </div>
-          <div class="dstep hi" data-cost="1.42" data-fcost="1.42" data-risk="0.82">
-            <span class="ds-i">04</span>
-            <span class="ds-body"><b>Deep research — moat &amp; capex cycle</b><i>multi-source synthesis, judgment</i></span>
-            <span class="ds-risk"><i></i></span>
-            <span class="ds-chip t-frontier">FRONTIER · GPT 5.6<em>$1.42</em></span>
-          </div>
-          <div class="dstep hi" data-cost="2.05" data-fcost="2.05" data-risk="0.88">
-            <span class="ds-i">05</span>
-            <span class="ds-body"><b>DCF assumptions &amp; sensitivity</b><i>valuation core — max blast radius</i></span>
-            <span class="ds-risk"><i></i></span>
-            <span class="ds-chip t-frontier">FRONTIER · FABLE 5 + VERIFIER<em>$2.05</em></span>
-          </div>
-          <div class="dstep" data-cost="0.24" data-fcost="2.27" data-risk="0.41">
-            <span class="ds-i">06</span>
-            <span class="ds-body"><b>Draft &amp; fact-check memo</b><i>write, cite, audit</i></span>
-            <span class="ds-risk"><i></i></span>
-            <span class="ds-chip t-open">OPEN-SOURCE — FABLE 5 AUDIT<em>$0.24</em></span>
-          </div>
-        </div>
-        <div class="decomp-foot">
-          <div class="df-col">
-            <span class="df-k">ALL-FRONTIER BASELINE</span>
-            <span class="df-v" id="cost-frontier">$0.00</span>
-            <span class="df-bar"><i id="bar-frontier"></i></span>
-          </div>
-          <div class="df-col us">
-            <span class="df-k">ALLOCATED BY RISK</span>
-            <span class="df-v" id="cost-alloc">$0.00</span>
-            <span class="df-bar"><i id="bar-alloc"></i></span>
-          </div>
-          <div class="df-note" id="df-note">SAME VERIFIED OUTCOME · −70% SPEND</div>
-        </div>
-        <div class="scanline" id="scanline" aria-hidden="true"></div>
       </div>
     </div>
   </section>
@@ -420,8 +471,39 @@
           <div class="dk"><span class="dk-k">RUNS TODAY</span><span class="dk-v" id="dk-runs">1,284</span></div>
           <div class="dk"><span class="dk-k">VERIFIED RATE</span><span class="dk-v ok" id="dk-rate">96.8%</span></div>
           <div class="dk"><span class="dk-k">COST TODAY</span><span class="dk-v" id="dk-cost">$214.60</span></div>
+          <div class="dk"><span class="dk-k">TOKENS TODAY</span><span class="dk-v" id="dk-tok">38.2M</span></div>
+          <div class="dk"><span class="dk-k">CACHE HIT</span><span class="dk-v ok" id="dk-cache">81.4%</span></div>
           <div class="dk"><span class="dk-k">P95 LATENCY</span><span class="dk-v" id="dk-p95">8.4s</span></div>
           <div class="dk"><span class="dk-k">ESCALATIONS</span><span class="dk-v warn" id="dk-esc">3</span></div>
+        </div>
+        <div class="dash-charts" id="dash-charts">
+          <div class="dchart">
+            <div class="dch-head"><span>TOKEN THROUGHPUT · TOK/MIN BY TIER</span><span class="dch-val" id="ch-tok-val">—</span></div>
+            <canvas id="ch-tok" role="img" aria-label="Stacked area chart of token throughput per minute by model tier"></canvas>
+            <div class="dch-legend">
+              <span><i style="background:#22d3ee"></i>FRONTIER</span>
+              <span><i style="background:#22c55e"></i>OPEN-SOURCE</span>
+              <span><i style="background:#8b887c"></i>LOCAL</span>
+              <span class="dch-note" id="ch-tok-proj">PROJ EOD —</span>
+            </div>
+          </div>
+          <div class="dchart">
+            <div class="dch-head"><span>SPEND TODAY · CUMULATIVE $</span><span class="dch-val" id="ch-spend-val">—</span></div>
+            <canvas id="ch-spend" role="img" aria-label="Line chart of cumulative routed spend versus the all-frontier counterfactual"></canvas>
+            <div class="dch-legend">
+              <span><i style="background:#22d3ee"></i>ROUTED</span>
+              <span><i class="ln" style="background:#8b887c"></i>ALL-FRONTIER (COUNTERFACTUAL)</span>
+              <span class="dch-note" id="ch-spend-save">—</span>
+            </div>
+          </div>
+          <div class="dchart">
+            <div class="dch-head"><span>PROMPT CACHE HIT RATE</span><span class="dch-val" id="ch-cache-val">—</span></div>
+            <canvas id="ch-cache" role="img" aria-label="Line chart of prompt cache hit rate over time"></canvas>
+            <div class="dch-legend">
+              <span><i style="background:#22c55e"></i>CACHE READS ≈ 0.1× TOKEN PRICE</span>
+              <span class="dch-note" id="ch-cache-note">—</span>
+            </div>
+          </div>
         </div>
         <div class="dash-body">
           <div class="dash-runs">

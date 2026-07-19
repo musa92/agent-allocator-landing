@@ -65,8 +65,42 @@
     build();
   }
 
-  var PRICES = ['$14.60/M', '$6.20/M', '$2.80/M', '$0.90/M', '$3.40/M', '$8.10/M'];
-  var CHEAP = 3;
+  /* S2 — real blended per-MTok prices (≈3:1 in/out); cheapest capable wins */
+  var MODELS = [
+    { n: 'FABLE 5',       p: '$20.00/M' },
+    { n: 'GPT 5.6',       p: '$17.50/M' },
+    { n: 'OPUS 4.8',      p: '$10.00/M' },
+    { n: 'SONNET 5',      p: '$6.00/M'  },
+    { n: 'QWEN-72B',      p: '$0.60/M'  },
+    { n: 'DEEPSEEK-V3.2', p: '$0.50/M'  }
+  ];
+  var CHEAP = 5;
+
+  /* S3 — the coverage pipeline; the silent error lives in RECONCILE */
+  var CHAIN_N = ['INGEST', 'NORMALIZE', 'RECONCILE', 'DCF', 'MEMO'];
+
+  /* S4 — the unsupervised swarm. Dots per cluster ∝ token burn:
+     391M tok/day ÷ ~640 dots ≈ 600K tok/day per dot */
+  var SWARMS_D = [
+    { n: 'DEEP RESEARCH', tok: 96,  cost: 860  },
+    { n: 'FILING INGEST', tok: 208, cost: 1870 },
+    { n: 'MONITORING',    tok: 54,  cost: 490  },
+    { n: 'MEMO DRAFTS',   tok: 33,  cost: 300  }
+  ];
+  var SW_TOK = 0, SW_COST = 0;
+  SWARMS_D.forEach(function (s) { SW_TOK += s.tok; SW_COST += s.cost; });
+  SWARMS_D.forEach(function (s) { s.w = s.tok / SW_TOK; });
+
+  /* S5 — the same fleet under the allocator: cost per verified task,
+     and the marginal value each verified outcome adds */
+  var CLUSTERS_D = [
+    { n: 'INGEST',      cpv: '$0.14', val: 0.6  },
+    { n: 'HISTORICALS', cpv: '$0.31', val: 1.2  },
+    { n: 'FORECAST',    cpv: '$4.90', val: 9.8  },
+    { n: 'VALUATION',   cpv: '$3.10', val: 12.4 },
+    { n: 'MEMO',        cpv: '$0.90', val: 3.1  },
+    { n: 'AUDIT',       cpv: '$0.60', val: 1.5  }
+  ];
 
   function build() {
     meta = []; cur = [];
@@ -118,12 +152,19 @@
         };
       }
 
-      /* S4 background swarms — dynamic orbits */
+      /* S4 background swarms — cluster membership ∝ token burn, so the
+         biggest spender is visibly the biggest cloud; ~7% red = errors
+         nobody is catching */
+      var rw = Math.random(), kk3 = SWARMS_D.length - 1, accw = 0;
+      for (var q = 0; q < SWARMS_D.length; q++) {
+        accw += SWARMS_D[q].w;
+        if (rw < accw) { kk3 = q; break; }
+      }
       m.s3 = {
-        k: Math.floor(Math.random() * 4),
-        rad: 8 + Math.random() * 34,
+        k: kk3,
+        rad: (8 + Math.random() * 30) * (0.55 + SWARMS_D[kk3].w * 1.8),
         sp: (0.25 + Math.random() * 0.7) * (Math.random() < 0.5 ? 1 : -1),
-        c: Math.random() < 0.2 ? CYAN : BONE,
+        c: Math.random() < 0.07 ? RED : (Math.random() < 0.18 ? CYAN : BONE),
         a: 0.2 + Math.random() * 0.4
       };
 
@@ -137,7 +178,7 @@
           core: false, k: kk,
           rad: 5 + Math.random() * 16,
           sp: (0.35 + Math.random() * 0.8) * (Math.random() < 0.5 ? 1 : -1),
-          c: Math.random() < 0.14 ? GREEN : (Math.random() < 0.2 ? CYAN : BONE),
+          c: Math.random() < 0.42 ? GREEN : (Math.random() < 0.25 ? CYAN : BONE),
           a: 0.3 + Math.random() * 0.45
         };
       }
@@ -191,7 +232,7 @@
         ctx.strokeStyle = cheap ? 'rgba(' + CYAN + ',0.5)' : 'rgba(' + BONE + ',0.08)';
         ctx.lineWidth = cheap ? 1.4 : 1;
         ctx.beginPath(); ctx.moveTo(G.src.x, G.src.y); ctx.lineTo(md.x, md.y); ctx.stroke();
-        label('MODEL-' + String.fromCharCode(65 + k) + ' · ' + PRICES[k], md.x + 14, md.y + 3,
+        label(MODELS[k].n + ' · ' + MODELS[k].p, md.x + 14, md.y + 3,
           cheap ? CYAN : BONE, alpha * (cheap ? 0.9 : 0.4), 8.5, cheap, 'left');
       }
       ctx.globalAlpha = 1;
@@ -207,14 +248,23 @@
         ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
       }
       ctx.globalAlpha = 1;
+      for (var cn = 0; cn < 5; cn++) {
+        label(CHAIN_N[cn], G.chain[cn].x, G.chain[cn].y + 26,
+          cn >= 2 ? RED : BONE, alpha * (cn === 2 ? 0.75 : cn > 2 ? 0.45 : 0.5), 8, cn === 2);
+      }
       label('SILENT ERROR', G.chain[2].x, G.chain[2].y - 22, RED, alpha * (0.5 + 0.4 * Math.abs(Math.sin(time * 2.4))), 8.5, true);
-      label('…POISONS EVERYTHING DOWNSTREAM', G.chain[3].x, G.chain[4].y + 36, RED, alpha * 0.5, 8.5);
+      label('…POISONS DCF AND MEMO DOWNSTREAM', G.chain[3].x, G.chain[4].y + 44, RED, alpha * 0.5, 8.5);
     } else if (s === 3) {
       for (var w = 0; w < 4; w++) {
-        label('AGENT-' + (w + 1), G.swarms[w].x, G.swarms[w].y + 52, BONE, alpha * 0.4, 8);
+        var sd = SWARMS_D[w], sw = G.swarms[w];
+        label('AGENT-' + (w + 1) + ' · ' + sd.n, sw.x, sw.y + 56, BONE, alpha * 0.55, 8, true);
+        if (!small) label(sd.tok + 'M TOK/DAY · $' + sd.cost.toLocaleString('en-US') + '/DAY · VALUE ?', sw.x, sw.y + 70, BONE, alpha * 0.4, 8);
       }
-      label('UNSUPERVISED · ×10–100 INFERENCE · VALUE UNMEASURED',
-        small ? W / 2 : G.core.x, H * (small ? 0.55 : 0.72), BONE, alpha * 0.5, 8.5);
+      var hx = small ? W / 2 : G.core.x, hy = H * (small ? 0.55 : 0.72);
+      label('4 AGENTS · ' + SW_TOK + 'M TOK/DAY · $' + SW_COST.toLocaleString('en-US') + '/DAY BURN — VERIFIED VALUE: UNMEASURED',
+        hx, hy, BONE, alpha * 0.55, 8.5, true);
+      label('1 DOT ≈ ' + Math.round(SW_TOK * 1000 / N) + 'K TOK/DAY · RED = ERRORS NOBODY CATCHES',
+        hx, hy + 16, BONE, alpha * 0.35, 8);
     } else if (s === 4) {
       ctx.globalAlpha = alpha;
       ctx.strokeStyle = 'rgba(' + BONE + ',0.3)'; ctx.lineWidth = 1;
@@ -223,11 +273,19 @@
       ctx.beginPath(); ctx.arc(G.core.x, G.core.y, 24, time * 1.3, time * 1.3 + Math.PI * 0.6); ctx.stroke();
       ctx.globalAlpha = 1;
       label('ALLOCATOR', G.core.x, G.core.y + 44, BONE, alpha * 0.75, 9, true);
+      for (var k5 = 0; k5 < 6; k5++) {
+        var ang5 = -Math.PI / 2 + k5 * (Math.PI * 2 / 6) + 0.3;
+        var c5x = G.core.x + Math.cos(ang5) * G.ringR, c5y = G.core.y + Math.sin(ang5) * G.ringR * 0.78;
+        label(CLUSTERS_D[k5].n, c5x, c5y + 34, BONE, alpha * 0.5, 8, true);
+        if (!small) label(CLUSTERS_D[k5].cpv + ' / VERIFIED', c5x, c5y + 46, BONE, alpha * 0.35, 8);
+      }
       var tick = Math.floor(time * 0.9) % 6;
       var angT = -Math.PI / 2 + tick * (Math.PI * 2 / 6) + 0.3;
       var tx = G.core.x + Math.cos(angT) * G.ringR, ty = G.core.y + Math.sin(angT) * G.ringR * 0.78;
-      label('+$' + (4 + tick * 3.7).toFixed(2) + ' VERIFIED', tx, ty - 30, GREEN, alpha * 0.85, 8.5, true);
-      label('ROUTED BY VERIFIED MARGINAL VALUE', G.core.x, H * (small ? 0.58 : 0.78), CYAN, alpha * 0.6, 8.5, true);
+      label('+$' + CLUSTERS_D[tick].val.toFixed(2) + ' VERIFIED · ' + CLUSTERS_D[tick].n, tx, ty - 30, GREEN, alpha * 0.85, 8.5, true);
+      var by = H * (small ? 0.58 : 0.78);
+      label('ROUTED BY VERIFIED MARGINAL VALUE — $7.58/RUN VS $18.40 ALL-FRONTIER', G.core.x, by, CYAN, alpha * 0.6, 8.5, true);
+      label('GREEN = VERIFIED OUTPUT · 96.8% VERIFIED · ESCALATION 1.9%', G.core.x, by + 16, GREEN, alpha * 0.4, 8);
     }
   }
 

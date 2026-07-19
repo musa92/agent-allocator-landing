@@ -123,6 +123,7 @@
     while (rowsEl.children.length > 9) rowsEl.removeChild(rowsEl.lastChild);
 
     runCount++; costToday += run.cost; allCount++;
+    if (window.__allocFeed) window.__allocFeed(run);
     if (run.status === 'ok') okCount++;
     if (run.status === 'esc') escCount++;
     if (kRuns) kRuns.textContent = runCount.toLocaleString('en-US');
@@ -148,6 +149,240 @@
       new IntersectionObserver(function (entries) {
         entries[0].isIntersecting ? start() : stop();
       }, { threshold: 0.05 }).observe(rowsEl);
+    } else start();
+  }
+})();
+
+/* ═══════════════════════════════════════════════════════════
+   Live ops charts — token throughput by tier (stacked area),
+   cumulative spend vs the all-frontier counterfactual, and
+   prompt-cache hit rate. Fed by the run stream above via
+   window.__allocFeed; ticks once per simulated minute while
+   the dashboard is on screen. Hovering a chart scrubs its
+   history into the header readout.
+═══════════════════════════════════════════════════════════ */
+(function opsCharts() {
+  var wrap = document.getElementById('dash-charts');
+  if (!wrap) return;
+  var REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var BONE = '235,232,224', CYAN = '34,211,238', GREEN = '34,197,94', GREY = '139,136,124';
+  var MONO = '"Space Mono", monospace';
+  var HIST = 90, TICK_MS = 1200;
+  var FRONTIER_BLEND = 12; // $/MTok blended — the counterfactual price
+
+  var kTok = document.getElementById('dk-tok');
+  var kCache = document.getElementById('dk-cache');
+
+  /* rolling buffers */
+  var tokF = [], tokO = [], tokL = [];
+  var spendR = [], spendB = [];
+  var cache = [];
+  var routed = 214.6, base = 512.4, tokToday = 38.2e6;
+  var cacheEvent = -999; // tick index of last prefix invalidation
+  var tickN = 0;
+
+  var pend = { frontier: 0, open: 0, local: 0, cost: 0, btok: 0 };
+  window.__allocFeed = function (run) {
+    pend[run.def.tier] += run.tokens;
+    pend.cost += run.cost;
+    pend.btok += run.tokens;
+  };
+
+  function nz(base, amp, phase) {
+    return base + amp * Math.sin(tickN * 0.11 + phase) + (Math.random() - 0.5) * amp * 0.9;
+  }
+
+  function sample() {
+    tickN++;
+    /* tok/min by tier — averages sum to ≈270K/min ≈ 390M/day, matching the swarm stage */
+    var f = Math.max(8000, nz(62000, 16000, 0) + pend.frontier * 3);
+    var o = Math.max(12000, nz(142000, 34000, 2.1) + pend.open * 3);
+    var l = Math.max(6000, nz(68000, 18000, 4.2) + pend.local * 3);
+
+    /* cumulative spend: routed pays tier prices; counterfactual pays frontier for every token */
+    var minuteTok = f + o + l;
+    routed += pend.cost + (f / 1e6) * FRONTIER_BLEND + (o / 1e6) * 0.45 + (l / 1e6) * 0.02;
+    base += pend.cost + (minuteTok / 1e6) * FRONTIER_BLEND;
+    tokToday += minuteTok;
+
+    /* cache hit rate: stable ~82%, dips hard when a prompt prefix is rebuilt */
+    if (tickN - cacheEvent > 40 && Math.random() < 0.02) cacheEvent = tickN;
+    var recover = Math.min(1, (tickN - cacheEvent) / 12);
+    var hit = (0.82 + 0.05 * Math.sin(tickN * 0.07) + (Math.random() - 0.5) * 0.02) * recover +
+              0.52 * (1 - recover);
+    hit = Math.max(0.4, Math.min(0.96, hit));
+
+    push(tokF, f); push(tokO, o); push(tokL, l);
+    push(spendR, routed); push(spendB, base);
+    push(cache, hit);
+    pend.frontier = pend.open = pend.local = 0; pend.cost = 0; pend.btok = 0;
+
+    if (kTok) kTok.textContent = fmtTok(tokToday);
+    if (kCache) kCache.textContent = (hit * 100).toFixed(1) + '%';
+  }
+  function push(a, v) { a.push(v); if (a.length > HIST) a.shift(); }
+  function fmtTok(t) { return t >= 1e9 ? (t / 1e9).toFixed(2) + 'B' : (t / 1e6).toFixed(1) + 'M'; }
+  function fmtK(t) { return t >= 1e6 ? (t / 1e6).toFixed(2) + 'M' : Math.round(t / 1000) + 'K'; }
+
+  /* ── canvas helpers ── */
+  function Chart(id) {
+    var c = document.getElementById(id);
+    var ctx = c.getContext('2d');
+    var chart = { el: c, ctx: ctx, w: 0, h: 0, hover: -1 };
+    function size() {
+      var DPR = Math.min(window.devicePixelRatio || 1, 2);
+      chart.w = c.offsetWidth; chart.h = c.offsetHeight;
+      c.width = chart.w * DPR; c.height = chart.h * DPR;
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    }
+    size();
+    window.addEventListener('resize', function () { size(); drawAll(); }, { passive: true });
+    c.addEventListener('pointermove', function (e) {
+      var r = c.getBoundingClientRect();
+      chart.hover = Math.max(0, Math.min(HIST - 1, Math.round((e.clientX - r.left) / r.width * (HIST - 1))));
+      drawAll();
+    });
+    c.addEventListener('pointerleave', function () { chart.hover = -1; drawAll(); });
+    return chart;
+  }
+
+  function grid(ch) {
+    ch.ctx.clearRect(0, 0, ch.w, ch.h);
+    ch.ctx.strokeStyle = 'rgba(' + BONE + ',0.06)';
+    ch.ctx.lineWidth = 1;
+    for (var g = 1; g <= 3; g++) {
+      var y = ch.h * g / 4;
+      ch.ctx.beginPath(); ch.ctx.moveTo(0, y); ch.ctx.lineTo(ch.w, y); ch.ctx.stroke();
+    }
+  }
+  function xAt(ch, i, n) { return i / (n - 1) * ch.w; }
+  function crosshair(ch, i, n) {
+    if (i < 0) return;
+    ch.ctx.strokeStyle = 'rgba(' + BONE + ',0.25)';
+    ch.ctx.lineWidth = 1;
+    ch.ctx.beginPath(); ch.ctx.moveTo(xAt(ch, i, n), 0); ch.ctx.lineTo(xAt(ch, i, n), ch.h); ch.ctx.stroke();
+  }
+  function dot(ch, x, y, rgb) {
+    ch.ctx.fillStyle = 'rgba(' + rgb + ',1)';
+    ch.ctx.beginPath(); ch.ctx.arc(x, y, 2.4, 0, 7); ch.ctx.fill();
+  }
+
+  var chTok = Chart('ch-tok'), chSpend = Chart('ch-spend'), chCache = Chart('ch-cache');
+  var vTok = document.getElementById('ch-tok-val');
+  var vSpend = document.getElementById('ch-spend-val');
+  var vCache = document.getElementById('ch-cache-val');
+  var nProj = document.getElementById('ch-tok-proj');
+  var nSave = document.getElementById('ch-spend-save');
+  var nCache = document.getElementById('ch-cache-note');
+
+  function drawTok() {
+    var n = tokF.length; if (n < 2) return;
+    var ch = chTok; grid(ch);
+    var max = 0, i;
+    for (i = 0; i < n; i++) max = Math.max(max, tokF[i] + tokO[i] + tokL[i]);
+    max *= 1.15;
+    var layers = [
+      { d: tokL, rgb: GREY },
+      { d: tokO, rgb: GREEN },
+      { d: tokF, rgb: CYAN }
+    ];
+    var acc = new Array(n).fill(0);
+    layers.forEach(function (L) {
+      var top = acc.map(function (v, j) { return v + L.d[j]; });
+      ch.ctx.beginPath();
+      for (i = 0; i < n; i++) {
+        var x = xAt(ch, i, n), y = ch.h - top[i] / max * ch.h;
+        i ? ch.ctx.lineTo(x, y) : ch.ctx.moveTo(x, y);
+      }
+      for (i = n - 1; i >= 0; i--) ch.ctx.lineTo(xAt(ch, i, n), ch.h - acc[i] / max * ch.h);
+      ch.ctx.closePath();
+      ch.ctx.fillStyle = 'rgba(' + L.rgb + ',0.20)';
+      ch.ctx.fill();
+      ch.ctx.beginPath();
+      for (i = 0; i < n; i++) {
+        var x2 = xAt(ch, i, n), y2 = ch.h - top[i] / max * ch.h;
+        i ? ch.ctx.lineTo(x2, y2) : ch.ctx.moveTo(x2, y2);
+      }
+      ch.ctx.strokeStyle = 'rgba(' + L.rgb + ',0.9)';
+      ch.ctx.lineWidth = 1.5;
+      ch.ctx.stroke();
+      acc = top;
+    });
+    dot(ch, ch.w, ch.h - acc[n - 1] / max * ch.h, CYAN);
+    crosshair(ch, ch.hover, n);
+    var idx = ch.hover >= 0 ? ch.hover : n - 1;
+    vTok.textContent = fmtK(tokF[idx] + tokO[idx] + tokL[idx]) + '/MIN · F ' + fmtK(tokF[idx]) + ' · O ' + fmtK(tokO[idx]) + ' · L ' + fmtK(tokL[idx]);
+    var avg = 0; for (i = 0; i < n; i++) avg += tokF[i] + tokO[i] + tokL[i];
+    avg /= n;
+    nProj.textContent = 'PROJ EOD ~' + fmtTok(avg * 1440);
+  }
+
+  function drawSpend() {
+    var n = spendR.length; if (n < 2) return;
+    var ch = chSpend; grid(ch);
+    var lo = spendR[0], hi = spendB[n - 1] * 1.05, i;
+    function y(v) { return ch.h - (v - lo) / (hi - lo) * (ch.h - 8) - 4; }
+    ch.ctx.setLineDash([4, 4]);
+    ch.ctx.strokeStyle = 'rgba(' + GREY + ',0.85)';
+    ch.ctx.lineWidth = 1.5;
+    ch.ctx.beginPath();
+    for (i = 0; i < n; i++) { var x = xAt(ch, i, n); i ? ch.ctx.lineTo(x, y(spendB[i])) : ch.ctx.moveTo(x, y(spendB[i])); }
+    ch.ctx.stroke();
+    ch.ctx.setLineDash([]);
+    ch.ctx.beginPath();
+    for (i = 0; i < n; i++) { var x2 = xAt(ch, i, n); i ? ch.ctx.lineTo(x2, y(spendR[i])) : ch.ctx.moveTo(x2, y(spendR[i])); }
+    ch.ctx.strokeStyle = 'rgba(' + CYAN + ',1)';
+    ch.ctx.lineWidth = 2;
+    ch.ctx.stroke();
+    dot(ch, ch.w, y(spendR[n - 1]), CYAN);
+    dot(ch, ch.w, y(spendB[n - 1]), GREY);
+    crosshair(ch, ch.hover, n);
+    var idx = ch.hover >= 0 ? ch.hover : n - 1;
+    vSpend.textContent = 'ROUTED $' + spendR[idx].toFixed(2) + ' · BASE $' + spendB[idx].toFixed(2);
+    var saved = spendB[n - 1] - spendR[n - 1];
+    nSave.textContent = 'SAVED $' + saved.toFixed(0) + ' TODAY (−' + Math.round(saved / spendB[n - 1] * 100) + '%)';
+  }
+
+  function drawCache() {
+    var n = cache.length; if (n < 2) return;
+    var ch = chCache; grid(ch);
+    function y(v) { return ch.h - (v - 0.35) / 0.65 * (ch.h - 8) - 4; }
+    var i;
+    ch.ctx.beginPath();
+    ch.ctx.moveTo(0, ch.h);
+    for (i = 0; i < n; i++) ch.ctx.lineTo(xAt(ch, i, n), y(cache[i]));
+    ch.ctx.lineTo(ch.w, ch.h);
+    ch.ctx.closePath();
+    ch.ctx.fillStyle = 'rgba(' + GREEN + ',0.14)';
+    ch.ctx.fill();
+    ch.ctx.beginPath();
+    for (i = 0; i < n; i++) { var x = xAt(ch, i, n); i ? ch.ctx.lineTo(x, y(cache[i])) : ch.ctx.moveTo(x, y(cache[i])); }
+    ch.ctx.strokeStyle = 'rgba(' + GREEN + ',0.95)';
+    ch.ctx.lineWidth = 2;
+    ch.ctx.stroke();
+    dot(ch, ch.w, y(cache[n - 1]), GREEN);
+    crosshair(ch, ch.hover, n);
+    var idx = ch.hover >= 0 ? ch.hover : n - 1;
+    vCache.textContent = (cache[idx] * 100).toFixed(1) + '%';
+    nCache.textContent = tickN - cacheEvent < 12 ? 'PREFIX REBUILT — REWARMING' : '1H TTL · STABLE';
+    nCache.style.color = tickN - cacheEvent < 12 ? '#f59e0b' : '';
+  }
+
+  function drawAll() { drawTok(); drawSpend(); drawCache(); }
+
+  /* seed a full window of history so the charts open alive */
+  for (var s = 0; s < HIST; s++) sample();
+  drawAll();
+
+  if (!REDUCED) {
+    var timer = null;
+    function start() { if (!timer) timer = setInterval(function () { sample(); drawAll(); }, TICK_MS); }
+    function stop() { clearInterval(timer); timer = null; }
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        entries[0].isIntersecting ? start() : stop();
+      }, { threshold: 0.05 }).observe(wrap);
     } else start();
   }
 })();

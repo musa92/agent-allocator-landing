@@ -86,10 +86,21 @@
     });
   })();
 
-  /* chapter 2 — allocation towers */
+  /* chapter 2 — allocation towers.
+     Height IS the number: 20 world-units per $1 of verified value
+     produced per $1 spent, so VALUATION (3.3×) towers over MEMO (0.9×). */
   var BARS = 6;
-  var barH = [26, 34, 58, 66, 30, 40];      // ingest, hist, fcst, val, memo, audit
-  var barKind = ['dim', 'bone', 'cyan', 'cyan', 'red', 'bone'];
+  var BAR_D = [
+    { n: 'INGEST',      vpd: 1.3, kind: 'dim'  },
+    { n: 'HISTORICALS', vpd: 1.7, kind: 'bone' },
+    { n: 'FORECAST',    vpd: 2.9, kind: 'cyan' },
+    { n: 'VALUATION',   vpd: 3.3, kind: 'cyan' },
+    { n: 'MEMO',        vpd: 0.9, kind: 'red'  },
+    { n: 'AUDIT',       vpd: 2.0, kind: 'bone' }
+  ];
+  var barH = BAR_D.map(function (b) { return b.vpd * 20; });
+  var barKind = BAR_D.map(function (b) { return b.kind; });
+  var GRAPH_COLS = ['INGEST', 'HISTORICALS', 'FORECAST', 'VALUATION', 'MEMO'];
 
   for (var i = 0; i < COUNT; i++) {
     seed[i] = Math.random() * Math.PI * 2;
@@ -194,6 +205,39 @@
 
   var smooth = function (t) { return t * t * (3 - 2 * t); };
 
+  /* ── DOM label layer: numbers projected onto the particle field ── */
+  var labelWrap = document.createElement('div');
+  labelWrap.id = 'gl-labels';
+  labelWrap.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(labelWrap);
+  function mkLabel(html, cls) {
+    var el = document.createElement('div');
+    el.className = 'gl-label' + (cls ? ' ' + cls : '');
+    el.innerHTML = html;
+    labelWrap.appendChild(el);
+    return el;
+  }
+  var graphLabels = GRAPH_COLS.map(function (n) { return mkLabel(n, 'dim'); });
+  var graphCap = mkLabel('CLAIM GRAPH — EVERY CLAIM LINKED TO ITS BLAST RADIUS', 'dim');
+  var pulseLabel = mkLabel('', 'red');
+  var barLabels = BAR_D.map(function (b) {
+    return mkLabel('<b>' + b.n + '</b><span>$' + b.vpd.toFixed(2) + ' VERIFIED / $1' +
+      (b.kind === 'red' ? ' · ↓ BUDGET CUT' : b.kind === 'cyan' ? ' · ↑ +CAPITAL' : '') + '</span>',
+      b.kind === 'red' ? 'red' : b.kind === 'cyan' ? 'cyan' : 'dim');
+  });
+  var barCap = mkLabel('TOWER HEIGHT = VERIFIED VALUE PER $1 SPENT · GREEN CAP = REALIZED P&amp;L', 'dim');
+  var coreCap = mkLabel('<b>ONE OPERATING SYSTEM</b><span>6 AGENTS · $7.58 / VERIFIED RUN · 96.8% VERIFIED</span>', 'cyan');
+  var V3 = new THREE.Vector3();
+  function placeLabel(el, x, y, z, alpha) {
+    if (alpha <= 0.04 || glOpacity <= 0.04) { el.style.opacity = '0'; return; }
+    V3.set(x, y, z).applyEuler(points.rotation).multiplyScalar(points.scale.x).project(camera);
+    if (V3.z > 1) { el.style.opacity = '0'; return; }
+    var sx = (V3.x * 0.5 + 0.5) * window.innerWidth;
+    var sy = (-V3.y * 0.5 + 0.5) * window.innerHeight;
+    el.style.opacity = (alpha * glOpacity).toFixed(3);
+    el.style.transform = 'translate(-50%,-50%) translate(' + sx.toFixed(1) + 'px,' + sy.toFixed(1) + 'px)';
+  }
+
   /* blast-radius pulse state (chapter 1) */
   var pulseCol = 0, pulseNode = 2, pulseT0 = 0;
 
@@ -263,6 +307,24 @@
     camera.position.y += (-mouse.y * 10 - camera.position.y) * 0.04;
     camera.position.z = 150 - coreW * 26;
     camera.lookAt(0, 0, 0);
+
+    /* project the number labels onto the current formation */
+    var barW = p < 0.5 ? t : 1 - t;
+    for (var gl = 0; gl < GRAPH_COLS.length; gl++) {
+      placeLabel(graphLabels[gl], -72 + gl * 36, -56, 0, graphW * 0.8);
+    }
+    placeLabel(graphCap, 0, -70, 0, graphW * 0.6);
+    if (graphW > 0.3 && pt < 2.4) {
+      var down = 0;
+      for (var dn = 0; dn < nodes.length; dn++) if (nodes[dn].col > pulseCol) down++;
+      pulseLabel.innerHTML = 'BLAST RADIUS — ' + down + ' CLAIMS DOWNSTREAM · HALTED';
+      placeLabel(pulseLabel, nodes[pulseNode].x, nodes[pulseNode].y + 12, nodes[pulseNode].z, graphW * Math.max(0, 1 - pt / 2.4));
+    } else pulseLabel.style.opacity = '0';
+    for (var bl = 0; bl < BARS; bl++) {
+      placeLabel(barLabels[bl], (bl - (BARS - 1) / 2) * 26, -46 + barH[bl] + 12, 0, barW * 0.9);
+    }
+    placeLabel(barCap, 0, -60, 0, barW * 0.65);
+    placeLabel(coreCap, 0, -46, 0, coreW * 0.85);
 
     renderer.render(scene, camera);
     requestAnimationFrame(loop);
