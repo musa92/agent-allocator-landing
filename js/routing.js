@@ -705,6 +705,7 @@
     { l: '06 MEMO + AUDIT', s: '120K TOK', c: '#22c55e', tgt: 'QUILL' }
   ];
   CHIPS3D.forEach(function (c) { c.i = findNode(c.tgt); });
+  var COVHUB3D = findNode('COVERAGE DESK');
 
   /* real traffic riding the wires — a pulse picks a new message each lap */
   var MSGS3D = [
@@ -977,15 +978,23 @@
       gc.clearRect(0, 0, w, h);
       if (k > 0.03 && k < 0.48 && agents.length) {
         var cRect = depthCanvas.getBoundingClientRect();
+        var doneN = 0, flying = false;
         CHIPS3D.forEach(function (ch, ci2) {
           var u = (k - (0.05 + ci2 * 0.024)) / 0.17;
+          var row = agents[ci2];
+          /* the source row flashes at the cut, then sits emptied */
+          if (row) {
+            row.classList.toggle('cutting', u > 0 && u < 0.12);
+            row.classList.toggle('cut', u >= 0.12);
+          }
+          if (u >= 1) doneN++;
           if (u <= 0 || u > 1.3) return;
+          flying = true;
           var tp = P[ch.i];
           if (!tp) return;
           var uu = Math.min(1, u);
           var e2 = uu * uu * (3 - 2 * uu);
           var sx = w * 0.3, sy = vh * (0.25 + ci2 * 0.1);
-          var row = agents[ci2];
           if (row) {
             var rr2 = row.getBoundingClientRect();
             if (rr2.width) {
@@ -997,39 +1006,75 @@
              through it, with alternating sweep */
           var mxx = (sx + tp.x) / 2 + ((ci2 % 2) ? 1 : -1) * (110 + ci2 * 28);
           var myy = Math.min(sy, tp.y) - 130 - ci2 * 16;
-          var i1 = 1 - e2;
-          var bx = i1 * i1 * sx + 2 * i1 * e2 * mxx + e2 * e2 * tp.x;
-          var by = i1 * i1 * sy + 2 * i1 * e2 * myy + e2 * e2 * tp.y;
+          function bez(e) {
+            var i2 = 1 - e;
+            return {
+              x: i2 * i2 * sx + 2 * i2 * e * mxx + e * e * tp.x,
+              y: i2 * i2 * sy + 2 * i2 * e * myy + e * e * tp.y
+            };
+          }
+          var b = bez(e2), bx = b.x, by = b.y;
           var sc = 1 - 0.62 * e2;
           var al = (uu < 0.06 ? uu / 0.06 : 1) * (uu > 0.9 ? (1 - uu) / 0.1 : 1);
+          /* the cut itself — a bright scissor-line across the row */
+          if (u < 0.08 && row) {
+            gc.globalAlpha = Math.sin(Math.PI * (u / 0.08)) * 0.8;
+            gc.strokeStyle = '#ffb400'; gc.lineWidth = 1.5;
+            gc.beginPath(); gc.moveTo(sx - 130, sy); gc.lineTo(sx + 130, sy); gc.stroke();
+          }
+          /* target anticipation — the agent glows as its work approaches */
+          if (uu > 0.5) {
+            var ant = (uu - 0.5) / 0.5;
+            var ag2 = gc.createRadialGradient(tp.x, tp.y, 0, tp.x, tp.y, 30);
+            ag2.addColorStop(0, ch.c); ag2.addColorStop(1, 'rgba(0,0,0,0)');
+            gc.globalAlpha = ant * 0.3;
+            gc.fillStyle = ag2;
+            gc.beginPath(); gc.arc(tp.x, tp.y, 30, 0, 6.2832); gc.fill();
+            if (uu < 0.95) {
+              gc.globalAlpha = Math.sin(Math.PI * ant) * 0.85;
+              gc.textAlign = 'center';
+              gc.fillStyle = ch.c;
+              gc.font = '700 7px "Space Mono", monospace';
+              gc.fillText('RECEIVING…', tp.x, tp.y - 24);
+            }
+          }
           if (al > 0.02) {
+            /* sparkle trail — ghosts of the recent path */
+            for (var tj = 1; tj <= 4; tj++) {
+              var ue = e2 - tj * 0.05;
+              if (ue <= 0) break;
+              var tb = bez(ue);
+              gc.globalAlpha = al * 0.3 * (1 - tj / 5);
+              gc.fillStyle = ch.c;
+              gc.beginPath(); gc.arc(tb.x, tb.y, (2.6 - tj * 0.5) * sc, 0, 6.2832); gc.fill();
+            }
+            /* banking — the chip rotates into its flight tangent */
+            var db = bez(Math.min(1, e2 + 0.02));
+            var bank = Math.max(-0.22, Math.min(0.22, Math.atan2(db.y - by, db.x - bx) * 0.35));
             var cwp = 150 * sc, chp = 30 * sc;
-            /* motion streak behind the packet */
-            gc.globalAlpha = al * 0.3;
-            gc.strokeStyle = ch.c; gc.lineWidth = 1.4 * sc;
-            gc.beginPath();
-            gc.moveTo(bx - (tp.x - sx) * 0.045, by - (tp.y - sy) * 0.045);
-            gc.lineTo(bx, by);
-            gc.stroke();
-            /* the chip — a cut-out slice of the registry row */
+            gc.save();
+            gc.translate(bx, by);
+            gc.rotate(bank);
             gc.globalAlpha = al * 0.95;
             gc.fillStyle = 'rgba(8,9,12,0.95)';
-            gc.fillRect(bx - cwp / 2, by - chp / 2, cwp, chp);
+            gc.fillRect(-cwp / 2, -chp / 2, cwp, chp);
             gc.strokeStyle = ch.c; gc.lineWidth = 1;
-            gc.strokeRect(bx - cwp / 2 + 0.5, by - chp / 2 + 0.5, cwp - 1, chp - 1);
+            gc.strokeRect(-cwp / 2 + 0.5, -chp / 2 + 0.5, cwp - 1, chp - 1);
             gc.fillStyle = ch.c;
-            gc.fillRect(bx - cwp / 2, by - chp / 2, 2, chp);
+            gc.fillRect(-cwp / 2, -chp / 2, 2, chp);
             if (sc > 0.48) {
               gc.textAlign = 'left';
               gc.fillStyle = '#ebe8e0';
               gc.font = '700 ' + Math.max(6.5, 9 * sc).toFixed(1) + 'px "Space Mono", monospace';
-              gc.fillText(ch.l, bx - cwp / 2 + 8 * sc, by - 2 * sc);
+              gc.fillText(ch.l, -cwp / 2 + 8 * sc, -2 * sc);
               gc.fillStyle = '#8b887c';
               gc.font = Math.max(6, 7.5 * sc).toFixed(1) + 'px "Space Mono", monospace';
-              gc.fillText(ch.s, bx - cwp / 2 + 8 * sc, by + 9 * sc);
+              gc.fillText(ch.s, -cwp / 2 + 8 * sc, 9 * sc);
             }
+            gc.restore();
           }
-          /* landing flash — the agent absorbs the packet */
+          /* landing — flash, TASK ACCEPTED, and a report-in pulse
+             running up the wire to the harness */
           if (u > 0.86) {
             var fl = Math.min(1, (u - 0.86) / 0.34);
             gc.globalAlpha = (1 - fl) * 0.85;
@@ -1039,8 +1084,39 @@
             gc.fillStyle = ch.c;
             gc.beginPath(); gc.arc(tp.x, tp.y, 5 + fl * 12, 0, 6.2832); gc.fill();
           }
+          if (u > 1) {
+            var pu = Math.min(1, (u - 1) / 0.3);
+            gc.globalAlpha = Math.sin(Math.PI * pu) * 0.9;
+            gc.textAlign = 'center';
+            gc.fillStyle = '#22c55e';
+            gc.font = '700 7.5px "Space Mono", monospace';
+            gc.fillText('TASK ACCEPTED', tp.x, tp.y - 24);
+            var hp4 = P[COVHUB3D];
+            if (hp4) { /* the agent reports in to its harness */
+              gc.fillStyle = ch.c;
+              gc.beginPath();
+              gc.arc(tp.x + (hp4.x - tp.x) * pu, tp.y + (hp4.y - tp.y) * pu, 2.4, 0, 6.2832);
+              gc.fill();
+            }
+          }
           gc.globalAlpha = 1;
         });
+        /* distribution counter rides top-center through the hand-off */
+        if (flying || (doneN > 0 && k < 0.44)) {
+          var cAl = doneN === 6 ? 1 - clamp((k - 0.38) / 0.06) : 1;
+          if (cAl > 0.02) {
+            gc.globalAlpha = cAl;
+            gc.textAlign = 'center';
+            gc.fillStyle = doneN === 6 ? '#22c55e' : '#ffb400';
+            gc.font = '700 10px "Space Mono", monospace';
+            gc.fillText(doneN === 6 ? 'ORDER DISTRIBUTED — 6/6 ACCEPTED'
+              : 'DISTRIBUTING ORDER — ' + doneN + '/6 DELIVERED', cx, 72);
+            gc.globalAlpha = 1;
+          }
+        }
+      } else if (agents.length && k <= 0.03) {
+        /* rewound past the cut — restore the rows */
+        agents.forEach(function (row) { row.classList.remove('cutting', 'cut'); });
       }
     }
 
@@ -1371,6 +1447,7 @@
       depthOn = false;
       selNode = -1; hoverNode = -1; selEdge = -1; hoverEdge = -1;
       depthCanvas.style.cursor = '';
+      agents.forEach(function (row) { row.classList.remove('cutting', 'cut'); });
       if (depthRAF) cancelAnimationFrame(depthRAF);
       if (depthCtx) {
         depthCtx.setTransform(1, 0, 0, 1, 0, 0);
