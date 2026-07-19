@@ -821,3 +821,183 @@ body.no-motion .rstep, body.no-motion .rs-chip, body.no-motion .rterm-order { op
   .rstep { transition: border-color 0.3s ease, background 0.3s ease; }
   .rmodel { transition: border-color 0.3s ease, box-shadow 0.3s ease, filter 0.25s ease; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   The laptop — the terminal is the screen of a machine on a
+   desk. Scroll dollies the camera in: the lid tilts flat, the
+   bezel slides past the viewport edges, and you're inside.
+═══════════════════════════════════════════════════════════ */
+.laptop-scene { position: relative; perspective: 1700px; }
+.laptop {
+  position: relative; transform-style: preserve-3d;
+  transform-origin: 50% 42%; will-change: transform;
+}
+.laptop .rterm { z-index: 1; }
+.laptop-frame {
+  position: absolute; inset: -30px -16px -14px; border-radius: 14px; z-index: 0;
+  background: linear-gradient(180deg, #1c1e24, #101116 58%, #0b0c0f);
+  border: 1px solid #363a42; border-bottom-color: #23262c;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 0 1px rgba(0,0,0,0.6),
+    0 0 110px rgba(255,180,0,0.05),
+    0 30px 70px rgba(0,0,0,0.55);
+  will-change: opacity;
+}
+.lb-cam {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  width: 5px; height: 5px; border-radius: 50%; background: #061d26;
+  box-shadow: 0 0 5px rgba(34,211,238,0.55), inset 0 0 2px #22d3ee;
+}
+.laptop-base {
+  position: absolute; top: calc(100% + 13px); left: -4.5%; right: -4.5%; height: 250px;
+  transform-origin: 50% 0; transform: rotateX(67deg);
+  border-radius: 4px 4px 20px 20px;
+  background: linear-gradient(180deg, #1b1d22, #14151a 55%, #0d0e11);
+  border: 1px solid #2e323a; border-top: 1px solid #454a54;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.5), 0 18px 40px rgba(0,0,0,0.45);
+  will-change: opacity, transform;
+}
+/* screen light spilling onto the deck */
+.laptop-base::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,180,0,0.06), transparent 55%);
+}
+.lb-keys {
+  position: absolute; top: 20px; left: 5.5%; right: 5.5%; height: 55%;
+  border-radius: 6px; background-color: #0e0f12;
+  background-image:
+    repeating-linear-gradient(0deg, #16171c 0 26px, #0a0b0d 26px 31px),
+    repeating-linear-gradient(90deg, #16171c 0 30px, #0a0b0d 30px 35px);
+  background-blend-mode: darken;
+  box-shadow: inset 0 0 0 1px #24272e, inset 0 6px 14px rgba(0,0,0,0.55);
+}
+.lb-track {
+  position: absolute; bottom: 9%; left: 34%; right: 34%; height: 22%;
+  border-radius: 8px; background: linear-gradient(180deg, #191b20, #121317);
+  box-shadow: inset 0 0 0 1px #262a31, inset 0 2px 8px rgba(0,0,0,0.5);
+}
+.laptop-shadow {
+  position: absolute; top: calc(100% + 92px); left: 2%; right: 2%; height: 110px;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(0,0,0,0.65), transparent 72%);
+  filter: blur(16px); will-change: opacity;
+}
+.laptop-cap {
+  position: absolute; left: 0; right: 0; bottom: 70px; text-align: center;
+  display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  font-family: var(--font-mono); letter-spacing: 0.2em; will-change: opacity;
+}
+.laptop-cap b { font-size: 0.78rem; font-weight: 700; color: var(--text-2); }
+.laptop-cap span { font-size: 0.6rem; color: var(--text-3); animation: cap-nudge 2.2s ease-in-out infinite; }
+@keyframes cap-nudge { 50% { transform: translateY(5px); opacity: 0.55; } }
+body.no-motion .laptop-frame, body.no-motion .laptop-base,
+body.no-motion .laptop-shadow, body.no-motion .laptop-cap { display: none; }
+
+/* ═══════════════════════════════════════════════════════════
+   Page 2 — workforce registry. The board flips to AGNT <GO>:
+   every routed step becomes an agent with a minted ID, an
+   autonomy grade, a metered budget — and the token bill
+   collapses through cache/dedup to the billed amount.
+═══════════════════════════════════════════════════════════ */
+.rt-page2 {
+  position: absolute; left: 0; right: 0; bottom: 0; top: 76px; z-index: 6;
+  background: #08090c; padding: 12px 16px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  opacity: 0; transform: translate3d(0, 18px, 1px); pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.rt-page2.on { opacity: 1; transform: translate3d(0, 0, 2px); pointer-events: auto; }
+.p2-hed {
+  display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; color: #ffb400;
+  padding-bottom: 8px; border-bottom: 1px solid rgba(255,180,0,0.2);
+}
+.p2-hed .p2-law { color: var(--text-3); font-weight: 400; }
+.p2-thead, .ragent {
+  display: grid; gap: 12px; align-items: center;
+  grid-template-columns: 106px minmax(0, 1fr) 128px 100px 78px 84px;
+}
+.p2-thead {
+  padding: 0 12px; font-size: 0.5rem; letter-spacing: 0.16em; color: var(--text-3);
+}
+.p2-thead span:last-child { text-align: right; }
+.p2-rows { display: flex; flex-direction: column; gap: 7px; }
+.ragent {
+  padding: 7px 12px; border: 1px solid rgba(235,232,224,0.1); background: var(--bg-2);
+  opacity: 0.1; transform: translateX(-12px);
+  transition: opacity 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+}
+.ragent.on { opacity: 1; transform: none; }
+.ragent.minted { border-left: 2px solid #ffb400; padding-left: 11px; }
+.ra-id {
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text-3);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.ragent.minted .ra-id { color: #ffb400; text-shadow: 0 0 12px rgba(255,180,0,0.35); }
+.ra-body { min-width: 0; }
+.ra-body b {
+  display: block; font-family: var(--font-body); font-size: 0.74rem; font-weight: 600;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ra-body i {
+  display: block; font-style: normal; font-size: 0.56rem; letter-spacing: 0.04em;
+  color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ra-model { font-size: 0.56rem; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ra-auto { display: flex; align-items: center; gap: 6px; font-size: 0.54rem; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap; }
+.ra-auto i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.ra-auto.lv1 { color: #ff5f57; } .ra-auto.lv1 i { background: #ff5f57; box-shadow: 0 0 8px rgba(255,95,87,0.5); }
+.ra-auto.lv2 { color: #ffb400; } .ra-auto.lv2 i { background: #ffb400; box-shadow: 0 0 8px rgba(255,180,0,0.4); }
+.ra-auto.lv3 { color: #22c55e; } .ra-auto.lv3 i { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.45); }
+.ra-budget { font-size: 0.58rem; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ra-status { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em; color: var(--text-3); text-align: right; white-space: nowrap; }
+.ragent.minted .ra-status { color: #22c55e; }
+.rt-bill {
+  margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(235,232,224,0.08);
+  display: flex; flex-direction: column; gap: 7px;
+}
+.rb-row {
+  display: grid; grid-template-columns: minmax(200px, 300px) 74px 1fr; gap: 14px; align-items: center;
+  font-size: 0.56rem; letter-spacing: 0.1em; color: var(--text-3);
+}
+.rb-v { color: var(--text); font-size: 0.72rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rb-bar { height: 4px; background: var(--bg-3); overflow: hidden; }
+.rb-bar i { display: block; height: 100%; width: 0; background: #8b887c; }
+.rb-row.save .rb-bar i { background: #ffb400; }
+.rb-row.us .rb-bar i { background: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,0.5); }
+.rb-row.us .rb-v, .rb-row.save .rb-v { color: #22c55e; }
+.rb-row.save .rb-v { color: #ffb400; }
+.rb-note { font-size: 0.52rem; letter-spacing: 0.14em; color: var(--text-3); }
+@media (max-width: 900px) {
+  .p2-thead { display: none; }
+  .ragent { grid-template-columns: 96px minmax(0, 1fr) 90px; }
+  .ra-model, .ra-budget, .ra-status { display: none; }
+  .rb-row { grid-template-columns: 1fr 70px; }
+  .rb-row .rb-bar { grid-column: 1 / -1; }
+  .rt-page2 { top: 64px; }
+}
+body.no-motion .rt-page2 {
+  position: static; opacity: 1; transform: none; pointer-events: auto;
+  border-top: 1px solid rgba(235,232,224,0.1);
+}
+body.no-motion .ragent { opacity: 1; transform: none; }
+
+/* ═══════════════════════════════════════════════════════════
+   ACT 4 — behind the glass. The whole screen swings open like
+   a door (rotateY on the shell) and a 3D swarm backplane is
+   revealed behind it: agents as depth-projected nodes wired to
+   the allocator core, pulses running the channels.
+═══════════════════════════════════════════════════════════ */
+#rt-depth {
+  position: absolute; inset: 0; z-index: 0;
+  opacity: 0; pointer-events: none; will-change: opacity;
+}
+.laptop-scene { z-index: 1; }
+.laptop { will-change: transform, opacity; }
+body.no-motion #rt-depth { display: none; }
+
+/* dev harness: ?rtp=N isolates the routing terminal for inspection */
+.rtp-debug #preloader, .rtp-debug #nav, .rtp-debug #hero, .rtp-debug .credo-band,
+.rtp-debug #shift, .rtp-debug #gl, .rtp-debug #flow-canvas, .rtp-debug #gl-labels { display: none !important; }
+.rtp-debug #routing .eyebrow, .rtp-debug #routing .sec-h2, .rtp-debug #routing .sec-lede { display: none !important; }
+.rtp-debug .rterm-stage { margin-top: 0; }

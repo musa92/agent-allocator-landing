@@ -233,11 +233,17 @@
         600 pages of filings routes to an open-source model for a dime instead of $3.40; the
         deep-research core routes automatically to <b>GPT&nbsp;5.6 or Fable&nbsp;5</b> — with an independent verifier attached
         wherever the blast radius is large. Every step is calibrated on the cost × accuracy × speed
-        triangle. <b>Keep scrolling — the terminal decomposes, prices, and routes the order live.</b>
+        triangle. <b>Keep scrolling — you dive into the desk terminal: the order decomposes and
+        routes live, then every routed step is minted an agent ID and put on a metered budget.</b>
       </p>
 
       <div class="rterm-stage" id="rterm-stage">
-        <div class="rterm" aria-label="Scroll-driven demo: a coverage task is decomposed into six steps, each routed to a frontier, open-source, or local model based on risk">
+        <!-- ACT 4 — behind the glass: the swarm backplane in 3D -->
+        <canvas id="rt-depth" aria-hidden="true"></canvas>
+        <div class="laptop-scene" id="laptop-scene">
+        <div class="laptop" id="laptop">
+        <div class="laptop-frame" id="laptop-frame" aria-hidden="true"><span class="lb-cam"></span></div>
+        <div class="rterm" aria-label="Scroll-driven demo: you zoom into a laptop terminal where a coverage task is decomposed into six steps, each routed to a frontier, open-source, or local model based on risk — then each step is registered as an agent with a minted ID and budget">
           <div class="rterm-chrome">
             <span class="rc-key">ALLOC</span><span class="rc-go">&lt;GO&gt;</span>
             <span class="rc-title">MODEL ROUTER — RISK-WEIGHTED DISPATCH</span>
@@ -342,6 +348,80 @@
             <span><b>5&lt;GO&gt;</b> BUDGETS</span>
             <a href="https://claude.ai/code/artifact/37f591e4-ef9b-4362-a854-3244aa49cf99" target="_blank" rel="noopener"><b>99&lt;GO&gt;</b> LIVE CONSOLE ↗</a>
           </div>
+
+          <!-- Page 2 — workforce registry: routed steps become metered agents -->
+          <div class="rt-page2" id="rt-page2" aria-hidden="true">
+            <div class="p2-hed"><span>WORKFORCE REGISTRY — EACH ROUTED STEP SPAWNS AN AGENT</span><span class="p2-law">IDENTITY → BUDGET → EARNED AUTONOMY</span></div>
+            <div class="p2-thead" aria-hidden="true"><span>AGENT ID</span><span>AGENT · MANDATE</span><span>MODEL</span><span>AUTONOMY</span><span>BUDGET</span><span>STATUS</span></div>
+            <div class="p2-rows" id="p2-rows">
+              <div class="ragent" data-id="AGT-7F2E-01">
+                <span class="ra-id">····</span>
+                <span class="ra-body"><b>INGEST-01 · filings reader</b><i>312K tok · 10-K + four 10-Qs → structured notes</i></span>
+                <span class="ra-model t-open">QWEN-72B</span>
+                <span class="ra-auto lv2"><i></i>SUPERVISED</span>
+                <span class="ra-budget">$0.10/RUN</span>
+                <span class="ra-status"></span>
+              </div>
+              <div class="ragent" data-id="AGT-C41A-02">
+                <span class="ra-id">····</span>
+                <span class="ra-body"><b>NORMALIZE-02 · data janitor</b><i>60K tok · XBRL &amp; market data → clean series</i></span>
+                <span class="ra-model t-local">LLAMA-8B · LOCAL</span>
+                <span class="ra-auto lv3"><i></i>TRUSTED</span>
+                <span class="ra-budget">&lt;$0.01/RUN</span>
+                <span class="ra-status"></span>
+              </div>
+              <div class="ragent" data-id="AGT-9D03-03">
+                <span class="ra-id">····</span>
+                <span class="ra-body"><b>HISTORICALS-03 · model builder</b><i>140K tok · 12 quarters rebuilt, ties &amp; checks</i></span>
+                <span class="ra-model t-open">DEEPSEEK-V3.2</span>
+                <span class="ra-auto lv2"><i></i>SUPERVISED</span>
+                <span class="ra-budget">$0.08/RUN</span>
+                <span class="ra-status"></span>
+              </div>
+              <div class="ragent" data-id="AGT-E88F-04">
+                <span class="ra-id">····</span>
+                <span class="ra-body"><b>RESEARCH-04 · deep researcher</b><i>1.4M tok · 110 tool calls · moat &amp; capex cycle</i></span>
+                <span class="ra-model t-frontier">GPT 5.6</span>
+                <span class="ra-auto lv1"><i></i>PROBATION</span>
+                <span class="ra-budget">$4.10/RUN</span>
+                <span class="ra-status"></span>
+              </div>
+              <div class="ragent" data-id="AGT-52B7-05">
+                <span class="ra-id">····</span>
+                <span class="ra-body"><b>VALUATION-05 · DCF core</b><i>260K tok · WACC &amp; sensitivities · max blast radius</i></span>
+                <span class="ra-model t-frontier">FABLE 5 + VERIFIER</span>
+                <span class="ra-auto lv1"><i></i>PROBATION</span>
+                <span class="ra-budget">$2.60/RUN</span>
+                <span class="ra-status"></span>
+              </div>
+              <div class="ragent" data-id="AGT-B6C1-06">
+                <span class="ra-id">····</span>
+                <span class="ra-body"><b>MEMO-06 · writer + auditor</b><i>120K tok · draft, cite every claim, audit pass</i></span>
+                <span class="ra-model t-open">DEEPSEEK + AUDIT</span>
+                <span class="ra-auto lv2"><i></i>SUPERVISED</span>
+                <span class="ra-budget">$0.70/RUN</span>
+                <span class="ra-status"></span>
+              </div>
+            </div>
+            <div class="rt-bill" id="rt-bill">
+              <div class="rb-row"><span class="rb-k">RAW TOKEN DEMAND</span><span class="rb-v" id="rb-raw">0</span><span class="rb-bar"><i id="rb-bar-raw"></i></span></div>
+              <div class="rb-row save"><span class="rb-k">CACHE HITS + CONTEXT DEDUP · PER-ID MEMORY</span><span class="rb-v" id="rb-save">−0%</span><span class="rb-bar"><i id="rb-bar-save"></i></span></div>
+              <div class="rb-row us"><span class="rb-k">BILLED AFTER ALLOCATION</span><span class="rb-v" id="rb-billed">0</span><span class="rb-bar"><i id="rb-bar-billed"></i></span></div>
+              <div class="rb-note" id="rb-note">PER-AGENT METERING · PROMPT CACHE REUSED ACROSS THE SWARM · IDLE CONTEXT EVICTED</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="laptop-base" aria-hidden="true">
+          <div class="lb-keys"></div>
+          <div class="lb-track"></div>
+        </div>
+        <div class="laptop-shadow" aria-hidden="true"></div>
+        </div>
+        <div class="laptop-cap" id="laptop-cap" aria-hidden="true">
+          <b>ALLOCATOR DESK 01 — LIVE SESSION</b>
+          <span>SCROLL — ZOOM INTO THE TERMINAL ▼</span>
+        </div>
         </div>
       </div>
     </div>

@@ -1,11 +1,16 @@
 /* ═══════════════════════════════════════════════════════════
-   Allocator.os — routing terminal (pinned scroll-scrub, v2)
-   The ALLOC <GO> screen pins while the visitor scrolls through it:
-   the order command types out, the task decomposes into six
-   risk-scored steps, wires draw from each step to the model tier
-   it routes to (frontier / open-source / local), token pulses
-   stream along completed wires, model load meters fill, and the
+   Allocator.os — routing terminal (pinned scroll-scrub, v3)
+   Three acts on one scrubbed timeline:
+   ACT 1 — the terminal is the screen of a laptop on a desk;
+   scroll dollies the camera in until the bezel slides past the
+   viewport and you're inside the screen.
+   ACT 2 — the ALLOC <GO> order types out, decomposes into six
+   risk-scored steps, wires route each to a model tier, and the
    cost counters settle into the routed-vs-all-frontier verdict.
+   ACT 3 — the screen flips to AGNT WORKFORCE <GO>: every routed
+   step is registered as an agent (ID minted with a scramble,
+   autonomy grade, metered budget) and the token bill collapses
+   through cache/dedup to the billed amount.
    Scrubbing backwards rewinds the whole sequence.
 ═══════════════════════════════════════════════════════════ */
 'use strict';
@@ -28,6 +33,22 @@
   var barAlloc = document.getElementById('bar-alloc');
   var barFront = document.getElementById('bar-frontier');
   var note = document.getElementById('df-note');
+
+  var laptop = document.getElementById('laptop');
+  var lapFrame = document.getElementById('laptop-frame');
+  var lapBase = stage.querySelector('.laptop-base');
+  var lapShadow = stage.querySelector('.laptop-shadow');
+  var lapCap = document.getElementById('laptop-cap');
+  var page2 = document.getElementById('rt-page2');
+  var chromeBar = stage.querySelector('.rterm-chrome');
+  var cmdBar = stage.querySelector('.rterm-cmd');
+  var agents = page2 ? Array.prototype.slice.call(page2.querySelectorAll('.ragent')) : [];
+  var rbRaw = document.getElementById('rb-raw');
+  var rbSave = document.getElementById('rb-save');
+  var rbBilled = document.getElementById('rb-billed');
+  var rbBarRaw = document.getElementById('rb-bar-raw');
+  var rbBarSave = document.getElementById('rb-bar-save');
+  var rbBarBilled = document.getElementById('rb-bar-billed');
 
   var steps = Array.prototype.slice.call(stage.querySelectorAll('.rstep'));
   var models = {};
@@ -104,20 +125,19 @@
   var chipOrig = chips.map(function (c) { return c.innerHTML; });
   var chipState = steps.map(function () { return 'idle'; });
 
-  /* ── 3D: the terminal starts tilted back, layers fly in from depth,
-     the board flattens before wires draw, then mouse parallax moves
-     the whole assembly (wires included) as one object ── */
+  /* ── 3D: while inside the screen, mouse parallax sways the whole
+     assembly (wires included) as one object. The old scroll-tilt is
+     gone — the laptop shell owns the camera during the zoom. ── */
   var THREED = !REDUCED && window.innerWidth >= 900;
   var termEl = stage.querySelector('.rterm');
   var MODEL_ORDER = ['frontier', 'open', 'local'];
-  var mx = 0, my = 0, lastP = 0;
+  var mx = 0, my = 0, lastP = 0, zNow = 0;
   function applyTilt() {
     if (!THREED || !termEl) return;
-    var tk = 1 - clamp((lastP - 0.05) / 0.3); // 1 tilted → 0 flat by p≈0.35
+    var amp = clamp((zNow - 0.9) / 0.1) * (1 - flipNow); // only while landed inside, not mid-swing
     termEl.style.transform =
-      'rotateX(' + (tk * 9 + my * 1.5).toFixed(2) + 'deg)' +
-      ' rotateY(' + (tk * -7 + mx * 2.2).toFixed(2) + 'deg)' +
-      ' translateZ(' + (tk * -70).toFixed(1) + 'px)';
+      'rotateX(' + (my * 1.4 * amp).toFixed(2) + 'deg)' +
+      ' rotateY(' + (mx * 2.1 * amp).toFixed(2) + 'deg)';
   }
   stage.addEventListener('pointermove', function (e) {
     if (!THREED) return;
@@ -322,8 +342,340 @@
     }
   }
 
+  /* ═══ ACT 1 — the laptop dolly ═══
+     z: 0 = machine on the desk, 1 = inside the screen.
+     Transform-only (scale + rotateX on the shell) so the terminal
+     ends pixel-exact in its normal layout position; the bezel,
+     deck, and shadow just fade away as they slide past the edges. */
+  var flipNow = 0; // ACT 4 — how far the screen has swung open
+  function renderShell() {
+    if (!laptop) return;
+    var s = zNow * zNow * (3 - 2 * zNow);      // smoothstep — eases the dolly at both ends
+    var f = flipNow * flipNow * (3 - 2 * flipNow);
+    var scale = 0.42 + 0.58 * s;
+    var rotX = 12 * (1 - s);
+    /* zoom pivots on the screen center; the door-swing pivots on the left
+       spine. Origin only switches while the transform is identity, so no jump. */
+    laptop.style.transformOrigin = f > 0 ? '9% 50%' : '50% 42%';
+    laptop.style.transform =
+      'scale(' + scale.toFixed(4) + ') rotateX(' + rotX.toFixed(2) + 'deg)' +
+      ' rotateY(' + (-86 * f).toFixed(2) + 'deg)';
+    laptop.style.opacity = (1 - clamp((flipNow - 0.55) / 0.35)).toFixed(3);
+    laptop.style.visibility = flipNow >= 0.98 ? 'hidden' : 'visible';
+  }
+  function applyZoom(z) {
+    zNow = z;
+    if (!laptop) return;
+    renderShell();
+    var chromeK = 1 - clamp((z - 0.78) / 0.2);   // bezel survives until it's past the edges
+    var deckK = 1 - clamp((z - 0.5) / 0.4);      // keyboard deck drops away sooner
+    if (lapFrame) {
+      lapFrame.style.opacity = chromeK.toFixed(3);
+      lapFrame.style.visibility = chromeK <= 0 ? 'hidden' : 'visible';
+    }
+    [lapBase, lapShadow].forEach(function (el) {
+      if (!el) return;
+      el.style.opacity = deckK.toFixed(3);
+      el.style.visibility = deckK <= 0 ? 'hidden' : 'visible';
+    });
+    if (lapCap) lapCap.style.opacity = (1 - clamp(z / 0.22)).toFixed(3);
+    applyTilt();
+  }
+
+  /* ═══ ACT 3 — workforce registry + token bill ═══ */
+  var CMD2 = 'AGNT WORKFORCE <GO>';
+  var HEX = '0123456789ABCDEF';
+  var CACHE_SAVE = 0.61; // cache + dedup share of raw token demand
+  function scrambleId(target, t) {
+    // 'AGT-' stays; the hash settles left-to-right out of hex noise
+    var head = target.slice(0, 4), rest = target.slice(4);
+    var reveal = Math.floor(t * rest.length), out = head;
+    for (var i = 0; i < rest.length; i++) {
+      out += (i < reveal || rest[i] === '-') ? rest[i]
+        : HEX[(Math.random() * 16) | 0];
+    }
+    return out;
+  }
+  function updateRegistry(g) {
+    if (!page2) return;
+    page2.classList.toggle('on', g > 0.02);
+    page2.setAttribute('aria-hidden', g > 0.02 ? 'false' : 'true');
+    if (g <= 0) return;
+
+    cmdEl.textContent = CMD2.slice(0, Math.round(CMD2.length * clamp(g / 0.1)));
+    orderEl.classList.remove('on');
+
+    var minted = 0;
+    agents.forEach(function (r, i) {
+      var k = clamp((g - (0.1 + i * 0.075)) / 0.1);
+      r.classList.toggle('on', k > 0);
+      var idEl = r.querySelector('.ra-id');
+      var stEl = r.querySelector('.ra-status');
+      if (k <= 0) {
+        r.classList.remove('minted');
+        idEl.textContent = '····';
+        stEl.textContent = '';
+      } else if (k < 0.7) {
+        r.classList.remove('minted');
+        idEl.textContent = scrambleId(r.dataset.id, k / 0.7);
+        stEl.textContent = 'MINTING ID…';
+      } else {
+        r.classList.add('minted');
+        idEl.textContent = r.dataset.id;
+        stEl.textContent = 'ACTIVE';
+        minted++;
+      }
+    });
+
+    var b = clamp((g - 0.6) / 0.32);
+    var rawK = clamp(b * 2.4);
+    var saveK = clamp((b - 0.22) / 0.65);
+    var raw = totTok * rawK;
+    var billed = raw * (1 - CACHE_SAVE * saveK);
+    if (rbRaw) rbRaw.textContent = fmtTok(raw) + ' TOK';
+    if (rbSave) rbSave.textContent = '−' + Math.round(CACHE_SAVE * 100 * saveK) + '%';
+    if (rbBilled) rbBilled.textContent = fmtTok(billed) + ' TOK';
+    if (rbBarRaw) rbBarRaw.style.width = (100 * rawK) + '%';
+    if (rbBarSave) rbBarSave.style.width = (CACHE_SAVE * 100 * saveK) + '%';
+    if (rbBarBilled) rbBarBilled.style.width = (100 * rawK * (1 - CACHE_SAVE * saveK)) + '%';
+
+    msgEl.classList.remove('done');
+    if (g < 0.6) {
+      msgTextEl.textContent = 'SPAWNING WORKFORCE — MINTING AGENT IDS ' + minted + '/6';
+      tokensEl.textContent = '';
+    } else if (saveK < 1) {
+      msgTextEl.textContent = 'METERING — CACHE + DEDUP COLLAPSING THE TOKEN BILL';
+      tokensEl.textContent = fmtTok(billed) + ' TOK BILLED';
+    } else {
+      msgTextEl.textContent = 'WORKFORCE REGISTERED — 6 IDS MINTED · TOKEN BILL −' +
+        Math.round(CACHE_SAVE * 100) + '% · EVERY AGENT ON A METER';
+      msgEl.classList.add('done');
+      tokensEl.textContent = fmtTok(billed) + ' TOK BILLED';
+    }
+  }
+
+  /* ═══ ACT 4 — behind the glass: the swarm backplane ═══
+     A dependency-free 3D projection on a 2D canvas: the six minted
+     agents float in depth around the allocator core, wired to it and
+     to each other; pulses run the channels; the camera dollies in as
+     the screen swings open. Scrub drives the dolly, time drives life. */
+  var depthCanvas = document.getElementById('rt-depth');
+  var depthCtx = depthCanvas ? depthCanvas.getContext('2d') : null;
+  var depthK = 0, depthOn = false, depthRAF = null;
+  var TIER3D = { open: '#22c55e', local: '#8b887c', frontier: '#22d3ee' };
+  var NODES3D = [
+    { id: 'CORE', role: 'ALLOCATOR', x: 0, y: 0, z: 0, r: 24, c: '#ffb400', hub: true },
+    { id: 'AGT-7F2E-01', role: 'INGEST', x: -300, y: -75, z: -60, r: 13, c: TIER3D.open },
+    { id: 'AGT-C41A-02', role: 'NORMALIZE', x: -165, y: 125, z: 145, r: 11, c: TIER3D.local },
+    { id: 'AGT-9D03-03', role: 'HISTORICALS', x: -35, y: -150, z: 45, r: 12, c: TIER3D.open },
+    { id: 'AGT-E88F-04', role: 'RESEARCH', x: 160, y: 95, z: -125, r: 15, c: TIER3D.frontier },
+    { id: 'AGT-52B7-05', role: 'VALUATION', x: 305, y: -60, z: 85, r: 15, c: TIER3D.frontier },
+    { id: 'AGT-B6C1-06', role: 'MEMO', x: 60, y: 175, z: -40, r: 12, c: TIER3D.open }
+  ];
+  /* channels: every agent reports to the core; work flows between peers */
+  var EDGES3D = [
+    [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6],
+    [1, 3], [2, 3], [3, 5], [4, 5], [5, 6], [1, 4], [4, 6]
+  ];
+  var DUST3D = [];
+  for (var di = 0; di < 90; di++) {
+    var fr = function (n) { var v = Math.sin(n) * 43758.5453; return v - Math.floor(v); };
+    DUST3D.push({
+      x: (fr(di * 12.9898) - 0.5) * 1300,
+      y: (fr(di * 78.233) - 0.5) * 700,
+      z: (fr(di * 39.425) - 0.5) * 900
+    });
+  }
+  function sizeDepth() {
+    if (!depthCanvas) return;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var w = stage.offsetWidth, h = stage.offsetHeight;
+    if (depthCanvas.width !== (w * dpr | 0)) {
+      depthCanvas.width = w * dpr; depthCanvas.height = h * dpr;
+      depthCanvas.style.width = w + 'px'; depthCanvas.style.height = h + 'px';
+    }
+  }
+  function drawDepth(now) {
+    if (!depthCtx) return;
+    sizeDepth();
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    var w = depthCanvas.width / dpr, h = depthCanvas.height / dpr;
+    var g = depthCtx;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+
+    var k = depthK;
+    var ko = 1 - Math.pow(1 - k, 3); // easeOutCubic — dolly settles softly
+    var t = REDUCED ? 0 : now;
+    var rotY = t * 0.00012 + 0.85 * (1 - ko);
+    var camZ = 820 - 700 * ko;
+    /* center in the visible viewport slice, not the (possibly taller) stage */
+    var FOCAL = 640, cx = w / 2, cy = Math.min(h, window.innerHeight) / 2 - 14;
+    var cosY = Math.cos(rotY), sinY = Math.sin(rotY);
+    function proj(p) {
+      var x = p.x * cosY + p.z * sinY;
+      var z = -p.x * sinY + p.z * cosY;
+      var s = FOCAL / (FOCAL + z + camZ);
+      if (s <= 0.05) return null;
+      return { x: cx + x * s, y: cy + p.y * s, s: s, z: z };
+    }
+
+    /* vignette + core glow set the room */
+    var vg = g.createRadialGradient(cx, cy, 60, cx, cy, Math.max(w, h) * 0.7);
+    vg.addColorStop(0, 'rgba(255,180,0,' + (0.05 * k) + ')');
+    vg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = vg;
+    g.fillRect(0, 0, w, h);
+
+    /* dust — depth parallax */
+    DUST3D.forEach(function (d) {
+      var p = proj(d);
+      if (!p) return;
+      g.fillStyle = 'rgba(235,232,224,' + (0.14 * p.s * k).toFixed(3) + ')';
+      g.fillRect(p.x, p.y, 1.4 * p.s + 0.4, 1.4 * p.s + 0.4);
+    });
+
+    /* channels + pulses */
+    var P = NODES3D.map(proj);
+    EDGES3D.forEach(function (e, ei) {
+      var a = P[e[0]], b = P[e[1]];
+      if (!a || !b) return;
+      var na = NODES3D[e[0]], nb = NODES3D[e[1]];
+      var depth = (a.s + b.s) / 2;
+      var lg = g.createLinearGradient(a.x, a.y, b.x, b.y);
+      lg.addColorStop(0, na.c); lg.addColorStop(1, nb.c);
+      g.strokeStyle = lg;
+      g.globalAlpha = (0.18 + 0.3 * depth) * k;
+      g.lineWidth = 1.25 * depth;
+      g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
+      /* two pulses per channel, offset by edge index */
+      for (var j = 0; j < 2; j++) {
+        var pt = ((t * 0.00022) + j / 2 + ei * 0.173) % 1;
+        var px3 = {
+          x: na.x + (nb.x - na.x) * pt,
+          y: na.y + (nb.y - na.y) * pt,
+          z: na.z + (nb.z - na.z) * pt
+        };
+        var pp = proj(px3);
+        if (!pp) continue;
+        g.globalAlpha = 0.85 * Math.sin(Math.PI * pt) * k;
+        g.fillStyle = nb.c;
+        g.beginPath(); g.arc(pp.x, pp.y, 2 * pp.s, 0, 6.2832); g.fill();
+      }
+    });
+    g.globalAlpha = 1;
+
+    /* nodes — glow, core, ring, labels; painter's order back-to-front */
+    var order = NODES3D.map(function (n, i) { return i; })
+      .sort(function (i, j) { return P[j] && P[i] ? P[j].z - P[i].z : 0; });
+    order.forEach(function (i) {
+      var n = NODES3D[i], p = P[i];
+      if (!p) return;
+      var r = n.r * p.s * 1.35;
+      var glow = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 3.2);
+      glow.addColorStop(0, n.c); glow.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = 0.16 * k;
+      g.fillStyle = glow;
+      g.beginPath(); g.arc(p.x, p.y, r * 3.2, 0, 6.2832); g.fill();
+      g.globalAlpha = (0.35 + 0.6 * p.s) * k;
+      g.fillStyle = '#08090c';
+      g.beginPath(); g.arc(p.x, p.y, r, 0, 6.2832); g.fill();
+      g.strokeStyle = n.c; g.lineWidth = 1.3;
+      g.beginPath(); g.arc(p.x, p.y, r, 0, 6.2832); g.stroke();
+      g.fillStyle = n.c;
+      g.beginPath(); g.arc(p.x, p.y, Math.max(1.6, r * 0.3), 0, 6.2832); g.fill();
+      if (n.hub) { /* breathing outer ring on the core */
+        g.globalAlpha = (0.25 + 0.2 * Math.sin(t * 0.002)) * k;
+        g.beginPath(); g.arc(p.x, p.y, r * 1.7, 0, 6.2832); g.stroke();
+      }
+      var la = clamp((k - 0.35) / 0.4) * (0.4 + 0.6 * p.s);
+      if (la > 0.02) {
+        g.globalAlpha = la;
+        g.textAlign = 'center';
+        g.fillStyle = n.hub ? '#ffb400' : '#ebe8e0';
+        g.font = '700 ' + Math.round(10 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
+        g.fillText(n.id, p.x, p.y + r + 15);
+        g.fillStyle = 'rgba(139,136,124,0.9)';
+        g.font = Math.round(8.5 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
+        g.fillText(n.role, p.x, p.y + r + 27);
+      }
+      g.globalAlpha = 1;
+    });
+
+    /* HUD */
+    var hud = clamp((k - 0.3) / 0.4);
+    if (hud > 0.02) {
+      g.globalAlpha = hud;
+      g.textAlign = 'left';
+      g.fillStyle = '#ffb400';
+      g.font = '700 11px "Space Mono", monospace';
+      g.fillText('BKPL <GO> — SWARM BACKPLANE · LIVE TOPOLOGY', 24, 34);
+      g.textAlign = 'right';
+      g.fillStyle = '#8b887c';
+      g.font = '10px "Space Mono", monospace';
+      var rate = 220 + Math.round(40 * Math.sin(t * 0.0011));
+      g.fillText('AGENTS 6 · CHANNELS ' + (EDGES3D.length - 6) + ' · CORE LINKS 6 · MSGS ' + rate + '/S', w - 24, 34);
+      g.textAlign = 'center';
+      g.fillText('BEHIND THE GLASS — AGENTS NEGOTIATE CONTEXT · BUDGET · VERIFICATION OVER THE BACKPLANE',
+        cx, Math.min(h, window.innerHeight) - 22);
+      g.globalAlpha = 1;
+    }
+  }
+  function tickDepth(now) {
+    if (!depthOn) return;
+    drawDepth(now);
+    depthRAF = requestAnimationFrame(tickDepth);
+  }
+  function updateDepth(d) {
+    if (!depthCanvas || REDUCED) return;
+    depthK = d;
+    flipNow = d > 0 ? clamp(d / 0.6) : 0; // the door finishes opening by d=0.6
+    renderShell();
+    applyTilt();
+    depthCanvas.style.opacity = clamp(d * 1.8).toFixed(3);
+    var on = d > 0.01;
+    if (on && !depthOn) { depthOn = true; depthRAF = requestAnimationFrame(tickDepth); }
+    else if (!on && depthOn) {
+      depthOn = false;
+      if (depthRAF) cancelAnimationFrame(depthRAF);
+      if (depthCtx) {
+        depthCtx.setTransform(1, 0, 0, 1, 0, 0);
+        depthCtx.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
+      }
+    }
+  }
+
+  /* page 2 covers everything below the command line */
+  function layoutPage2() {
+    if (!page2 || !chromeBar || !cmdBar) return;
+    page2.style.top = (chromeBar.offsetHeight + cmdBar.offsetHeight) + 'px';
+  }
+
+  /* ═══ master timeline — one scrubbed p drives all four acts ═══
+     0.00–0.12 laptop dolly · 0.13–0.60 order decomposes & routes ·
+     0.62–0.80 registry: IDs mint, token bill collapses ·
+     0.82–1.00 the screen swings open — the swarm backplane in 3D */
+  function master(p) {
+    applyZoom(clamp(p / 0.12));
+    update(clamp((p - 0.13) / 0.47));
+    updateRegistry(clamp((p - 0.62) / 0.18));
+    updateDepth(clamp((p - 0.82) / 0.18));
+  }
+
+  layoutPage2();
+  window.addEventListener('resize', layoutPage2);
+
+  /* dev hook: ?rtp=0.5 freezes the timeline at that progress and
+     isolates the terminal at the top of the page (no scrolling needed) */
+  var dbg = /[?&]rtp=([\d.]+)/.exec(location.search);
+  if (dbg) {
+    document.documentElement.classList.add('rtp-debug');
+    master(Math.min(1, parseFloat(dbg[1])));
+    return;
+  }
+
   if (REDUCED || typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
-    update(1);
+    master(1);
     return;
   }
   gsap.registerPlugin(ScrollTrigger);
@@ -332,18 +684,18 @@
   gsap.to(proxy, {
     p: 1,
     ease: 'none',
-    onUpdate: function () { update(proxy.p); },
+    onUpdate: function () { master(proxy.p); },
     scrollTrigger: {
       trigger: stage,
       pin: true,
       start: 'top top',
-      end: '+=2600',
+      end: '+=5300',
       scrub: 0.5,
       anticipatePin: 1,
-      onRefresh: function () { update(proxy.p); }
+      onRefresh: function () { layoutPage2(); master(proxy.p); }
     }
   });
-  update(0);
+  master(0);
 })();
 
 /* ═══════════════════════════════════════════════════════════
