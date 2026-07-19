@@ -697,12 +697,12 @@
      off the page and fly as work packets to their agents in the
      harness. Scrub-driven — rewinding sucks them back onto the page. */
   var CHIPS3D = [
-    { l: '01 INGEST 10-K/10-Q', s: '312K TOK', c: '#22c55e', tgt: 'SCRIBE' },
-    { l: '02 NORMALIZE XBRL', s: '60K TOK', c: '#8b887c', tgt: 'JANITOR' },
-    { l: '03 HISTORICALS', s: '140K TOK', c: '#22c55e', tgt: 'MASON' },
-    { l: '04 DEEP RESEARCH', s: '1.4M TOK', c: '#22d3ee', tgt: 'ORACLE' },
-    { l: '05 DCF & WACC', s: '260K TOK', c: '#22d3ee', tgt: 'ABACUS-PRIME' },
-    { l: '06 MEMO + AUDIT', s: '120K TOK', c: '#22c55e', tgt: 'QUILL' }
+    { l: '01 INGEST 10-K/10-Q', s: '312K TOK', c: '#22c55e', m: 'QWEN-72B', tgt: 'SCRIBE' },
+    { l: '02 NORMALIZE XBRL', s: '60K TOK', c: '#8b887c', m: 'LLAMA-8B', tgt: 'JANITOR' },
+    { l: '03 HISTORICALS', s: '140K TOK', c: '#22c55e', m: 'DEEPSEEK-V3.2', tgt: 'MASON' },
+    { l: '04 DEEP RESEARCH', s: '1.4M TOK', c: '#22d3ee', m: 'GPT 5.6', tgt: 'ORACLE' },
+    { l: '05 DCF & WACC', s: '260K TOK', c: '#22d3ee', m: 'FABLE 5 + VER', tgt: 'ABACUS-PRIME' },
+    { l: '06 MEMO + AUDIT', s: '120K TOK', c: '#22c55e', m: 'DSK + AUDIT', tgt: 'QUILL' }
   ];
   CHIPS3D.forEach(function (c) { c.i = findNode(c.tgt); });
   var COVHUB3D = findNode('COVERAGE DESK');
@@ -976,32 +976,102 @@
       var gc = chipCtx;
       gc.setTransform(dpr, 0, 0, dpr, 0, 0);
       gc.clearRect(0, 0, w, h);
-      if (k > 0.03 && k < 0.48 && agents.length) {
-        var cRect = depthCanvas.getBoundingClientRect();
+      /* ── THE DISPATCH RAIL — the left side of the room ──
+         stage 1: every task docks on the rail as an ID ·
+         stage 2: a model is assigned to each ID ·
+         stage 3: packets launch from the model badges into the universe */
+      var RAIL = w >= 860;
+      var railX = 26, rowH = 47;
+      var railTop = Math.max(96, vh / 2 - 3.2 * rowH);
+      if (k > 0.03 && k < 0.5 && agents.length) {
         var doneN = 0, flying = false;
+        var railFade = 1 - clamp((k - 0.45) / 0.045);
+        var hdrK = clamp((k - 0.045) / 0.05) * railFade;
+        if (RAIL && hdrK > 0.02) {
+          gc.globalAlpha = hdrK;
+          gc.textAlign = 'left';
+          gc.fillStyle = '#ffb400';
+          gc.font = '700 9.5px "Space Mono", monospace';
+          gc.fillText('DISPATCH — IDS → MODELS → SWARM', railX, railTop - 26);
+          gc.fillStyle = '#8b887c';
+          gc.font = '7.5px "Space Mono", monospace';
+          gc.fillText('ORDER NVDA-0714 · 6 TASKS · RISK-WEIGHTED', railX, railTop - 14);
+          gc.strokeStyle = 'rgba(255,180,0,0.35)';
+          gc.lineWidth = 1;
+          gc.beginPath(); gc.moveTo(railX, railTop - 8); gc.lineTo(railX + 296, railTop - 8); gc.stroke();
+          gc.globalAlpha = 1;
+        }
+        var bx0 = railX + 168, bw2 = 122; // the model badge column
         CHIPS3D.forEach(function (ch, ci2) {
-          var u = (k - (0.05 + ci2 * 0.024)) / 0.17;
+          var idK = clamp((k - (0.055 + ci2 * 0.013)) / 0.045); // stage 1
+          var mdK = clamp((k - (0.12 + ci2 * 0.013)) / 0.045);  // stage 2
+          var u = (k - (0.175 + ci2 * 0.022)) / 0.16;           // stage 3
           var row = agents[ci2];
-          /* the source row flashes at the cut, then sits emptied */
+          /* the registry row empties as its task becomes an ID on the rail */
           if (row) {
-            row.classList.toggle('cutting', u > 0 && u < 0.12);
-            row.classList.toggle('cut', u >= 0.12);
+            row.classList.toggle('cutting', idK > 0 && idK < 1);
+            row.classList.toggle('cut', idK >= 1);
           }
           if (u >= 1) doneN++;
+          var ry3 = railTop + ci2 * rowH;
+          var rowDim = u >= 1 ? 0.4 : 0.95; // dispatched rows recede
+          /* stage 1 — the ID chip slides onto the rail */
+          if (RAIL && idK > 0.02 && railFade > 0.02) {
+            var ox2 = railX - 26 * (1 - idK);
+            gc.globalAlpha = idK * railFade * rowDim;
+            gc.strokeStyle = '#ffb400'; gc.lineWidth = 1;
+            gc.strokeRect(ox2 + 0.5, ry3 + 0.5, 13, 13);
+            gc.fillStyle = '#ffb400';
+            gc.fillRect(ox2 + 5, ry3 + 5, 4, 4);
+            gc.textAlign = 'left';
+            gc.font = '700 8.5px "Space Mono", monospace';
+            gc.fillText('T-0' + (ci2 + 1), ox2 + 20, ry3 + 9);
+            gc.fillStyle = '#ebe8e0';
+            gc.font = '700 8px "Space Mono", monospace';
+            gc.fillText(ch.l.slice(3), ox2 + 20, ry3 + 20);
+            gc.fillStyle = '#8b887c';
+            gc.font = '7px "Space Mono", monospace';
+            gc.fillText(ch.s, ox2 + 62, ry3 + 9);
+            gc.globalAlpha = 1;
+          }
+          /* stage 2 — the model badge snaps in and wires to its ID */
+          if (RAIL && mdK > 0.02 && railFade > 0.02) {
+            gc.globalAlpha = mdK * railFade * rowDim;
+            gc.strokeStyle = ch.c; gc.lineWidth = 1;
+            gc.beginPath();
+            gc.moveTo(railX + 148, ry3 + 10);
+            gc.lineTo(bx0 - 6, ry3 + 10);
+            gc.stroke();
+            /* assignment flash while the badge lands */
+            if (mdK < 1) {
+              gc.globalAlpha = mdK * railFade * (1 - mdK) * 0.5;
+              gc.fillStyle = ch.c;
+              gc.fillRect(bx0, ry3, bw2, 20);
+            }
+            gc.globalAlpha = mdK * railFade * rowDim;
+            gc.fillStyle = 'rgba(8,9,12,0.95)';
+            gc.fillRect(bx0, ry3, bw2, 20);
+            gc.strokeRect(bx0 + 0.5, ry3 + 0.5, bw2 - 1, 19);
+            gc.textAlign = 'left';
+            gc.fillStyle = ch.c;
+            gc.font = '700 8px "Space Mono", monospace';
+            gc.fillText(ch.m, bx0 + 8, ry3 + 13);
+            if (u >= 1) { /* dispatched — the rail keeps the receipt */
+              gc.fillStyle = '#22c55e';
+              gc.font = '700 9px "Space Mono", monospace';
+              gc.fillText('✓', bx0 + bw2 + 8, ry3 + 14);
+            }
+            gc.globalAlpha = 1;
+          }
           if (u <= 0 || u > 1.3) return;
           flying = true;
           var tp = P[ch.i];
           if (!tp) return;
           var uu = Math.min(1, u);
           var e2 = uu * uu * (3 - 2 * uu);
-          var sx = w * 0.3, sy = vh * (0.25 + ci2 * 0.1);
-          if (row) {
-            var rr2 = row.getBoundingClientRect();
-            if (rr2.width) {
-              sx = rr2.left + rr2.width * 0.5 - cRect.left;
-              sy = rr2.top + rr2.height * 0.5 - cRect.top;
-            }
-          }
+          /* stage 3 launches from the model badge itself */
+          var sx = RAIL ? bx0 + bw2 + 4 : 12;
+          var sy = RAIL ? ry3 + 10 : vh * (0.28 + ci2 * 0.09);
           /* high quadratic arc — the packets fly OVER the swarm, not
              through it, with alternating sweep */
           var mxx = (sx + tp.x) / 2 + ((ci2 % 2) ? 1 : -1) * (110 + ci2 * 28);
@@ -1016,12 +1086,6 @@
           var b = bez(e2), bx = b.x, by = b.y;
           var sc = 1 - 0.62 * e2;
           var al = (uu < 0.06 ? uu / 0.06 : 1) * (uu > 0.9 ? (1 - uu) / 0.1 : 1);
-          /* the cut itself — a bright scissor-line across the row */
-          if (u < 0.08 && row) {
-            gc.globalAlpha = Math.sin(Math.PI * (u / 0.08)) * 0.8;
-            gc.strokeStyle = '#ffb400'; gc.lineWidth = 1.5;
-            gc.beginPath(); gc.moveTo(sx - 130, sy); gc.lineTo(sx + 130, sy); gc.stroke();
-          }
           /* target anticipation — the agent glows as its work approaches */
           if (uu > 0.5) {
             var ant = (uu - 0.5) / 0.5;
@@ -1036,6 +1100,9 @@
               gc.fillStyle = ch.c;
               gc.font = '700 7px "Space Mono", monospace';
               gc.fillText('RECEIVING…', tp.x, tp.y - 24);
+              gc.globalAlpha = Math.sin(Math.PI * ant) * 0.6;
+              gc.fillStyle = '#8b887c';
+              gc.fillText(NODES3D[ch.i].name + ' · ' + NODES3D[ch.i].id, tp.x, tp.y - 34);
             }
           }
           if (al > 0.02) {
@@ -1091,6 +1158,12 @@
             gc.fillStyle = '#22c55e';
             gc.font = '700 7.5px "Space Mono", monospace';
             gc.fillText('TASK ACCEPTED', tp.x, tp.y - 24);
+            gc.globalAlpha = Math.sin(Math.PI * pu) * 0.65;
+            gc.fillStyle = '#8b887c';
+            gc.font = '7px "Space Mono", monospace';
+            gc.fillText(NODES3D[ch.i].id + ' ← T-0' + (ci2 + 1) + ' · ' + ch.m, tp.x, tp.y - 34);
+            gc.fillStyle = '#22c55e';
+            gc.font = '700 7.5px "Space Mono", monospace';
             var hp4 = P[COVHUB3D];
             if (hp4) { /* the agent reports in to its harness */
               gc.fillStyle = ch.c;
