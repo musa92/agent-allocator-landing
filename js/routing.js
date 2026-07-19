@@ -507,10 +507,10 @@
       var h = nameHash(nm);
       /* the crew orbits its harness; position + telemetry both derive from the name */
       var az = (aj / d.crew.length) * 6.2832 + (h % 100) / 100;
-      var el = ((h >> 8) % 100) / 100 - 0.5;
+      var el = ((h >>> 8) % 100) / 100 - 0.5;
       var rad = 88 + (h % 40);
       var lerp = function (a, b, t) { return a + (b - a) * t; };
-      var u1 = ((h >> 4) % 1000) / 1000, u2 = ((h >> 12) % 1000) / 1000, u3 = ((h >> 6) % 1000) / 1000;
+      var u1 = ((h >>> 4) % 1000) / 1000, u2 = ((h >>> 12) % 1000) / 1000, u3 = ((h >>> 6) % 1000) / 1000;
       NODES3D.push({
         id: nameId(nm), name: nm, kind: 'agent', c: d.c, r: 7.5 + (h % 4),
         x: hub.x + Math.cos(az) * rad, y: hub.y + el * 95, z: hub.z + Math.sin(az) * rad,
@@ -545,7 +545,7 @@
   var AGENT_IDX = [];
   NODES3D.forEach(function (n, i) {
     if (n.kind === 'agent') {
-      n.tokSave = 35 + (nameHash(n.name) >> 16) % 50;
+      n.tokSave = 35 + (nameHash(n.name) >>> 16) % 50;
       AGENT_IDX.push(i);
     }
   });
@@ -561,6 +561,48 @@
     return ms < 1000 ? Math.round(ms) + 'MS' : (ms / 1000).toFixed(1) + 'S';
   }
   var POPS = [], popLast = 0, popN = 0;
+
+  /* ── the dive path — camera keyframes over the depth act ──
+     wide arrival → into the SECURITY harness → close-up CIPHER →
+     whoosh across the backplane → close-up ORACLE (coverage desk)
+     → parting pull-back over the desk. Targets are node names. */
+  var CAMK = [
+    { d: 0.00, n: null, cz: 980 },
+    { d: 0.30, n: null, cz: 280 },
+    { d: 0.44, n: 'SECURITY', cz: -140 },
+    { d: 0.50, n: 'CIPHER', cz: -300 },
+    { d: 0.62, n: 'CIPHER', cz: -300 },
+    { d: 0.70, n: 'ORACLE', cz: -270 },
+    { d: 0.90, n: 'ORACLE', cz: -300 },
+    { d: 1.00, n: 'COVERAGE DESK', cz: 80 }
+  ];
+  CAMK.forEach(function (kf) { kf.i = kf.n ? findNode(kf.n) : -1; });
+  function camAt(d) {
+    var a = CAMK[0], b = CAMK[CAMK.length - 1];
+    for (var i = 0; i < CAMK.length - 1; i++) {
+      if (d >= CAMK[i].d && d <= CAMK[i + 1].d) { a = CAMK[i]; b = CAMK[i + 1]; break; }
+    }
+    var u = b.d === a.d ? 0 : (d - a.d) / (b.d - a.d);
+    u = u * u * (3 - 2 * u);
+    var O = { x: 0, y: 0, z: 0 };
+    var pa = a.i >= 0 ? NODES3D[a.i] : O, pb = b.i >= 0 ? NODES3D[b.i] : O;
+    return {
+      x: pa.x + (pb.x - pa.x) * u,
+      y: pa.y + (pb.y - pa.y) * u,
+      z: pa.z + (pb.z - pa.z) * u,
+      cz: a.cz + (b.cz - a.cz) * u
+    };
+  }
+  /* agent dossiers shown during the close-up holds */
+  var CLOSEUPS = [
+    { n: 'CIPHER', d0: 0.47, d1: 0.63, dept: 'SECURITY', model: 'LLAMA-8B · ON-PREM',
+      task: 'SCANNING 1,204 EGRESS EVENTS / MIN', tok: 'TOK TODAY 412K RAW → 9K BILLED · −98%',
+      auto: 'TRUSTED', blocks: 4 },
+    { n: 'ORACLE', d0: 0.71, d1: 0.91, dept: 'COVERAGE DESK', model: 'GPT 5.6 + FABLE 5 VERIFY',
+      task: 'DEEP RESEARCH — NVDA MOAT & CAPEX CYCLE', tok: 'TOK TODAY 6.1M RAW → 2.2M BILLED · −64%',
+      auto: 'PROBATION', blocks: 2 }
+  ];
+  CLOSEUPS.forEach(function (cu) { cu.i = findNode(cu.n); });
 
   function sizeDepth() {
     if (!depthCanvas) return;
@@ -581,21 +623,30 @@
     g.clearRect(0, 0, w, h);
 
     var k = depthK;
-    var ko = 1 - Math.pow(1 - k, 3); // easeOutCubic — dolly settles softly
     var t = REDUCED ? 0 : now;
-    var rotY = t * 0.0001 + 0.85 * (1 - ko);
-    var camZ = 980 - 700 * ko; // settles wide enough to hold the whole company
+    var cam = camAt(k);
+    /* the world orbit damps as we get inside a harness — the camera then
+       slow-orbits the focal agent instead of spinning the whole room */
+    var insideK = clamp((k - 0.3) / 0.14);
+    var arriveK = clamp(k / 0.3);
+    arriveK = arriveK * arriveK * (3 - 2 * arriveK);
+    var rotY = t * 0.0001 * (1 - 0.72 * insideK) + 0.85 * (1 - arriveK);
+    var camZ = cam.cz;
     /* center in the visible viewport slice, not the (possibly taller) stage */
-    var FOCAL = 640, cx = w / 2, cy = Math.min(h, window.innerHeight) / 2 - 14;
+    var FOCAL = 640, cx = w / 2;
+    var vh = Math.min(h, window.innerHeight);
+    var cy = vh / 2 - 14;
     var cosY = Math.cos(rotY), sinY = Math.sin(rotY);
     function proj(p) {
       /* clusters breathe — each node bobs on its own phase */
       var by = p.ph !== undefined ? Math.sin(t * 0.0006 + p.ph) * 7 : 0;
-      var x = p.x * cosY + p.z * sinY;
-      var z = -p.x * sinY + p.z * cosY;
+      var wx = p.x - cam.x, wy = p.y + by - cam.y, wz = p.z - cam.z;
+      var x = wx * cosY + wz * sinY;
+      var z = -wx * sinY + wz * cosY;
       var s = FOCAL / (FOCAL + z + camZ);
       if (s <= 0.05) return null;
-      return { x: cx + x * s, y: cy + (p.y + by) * s, s: s, z: z };
+      if (s > 3.4) s = 3.4; // right at the camera plane — keep sizes sane
+      return { x: cx + x * s, y: cy + wy * s, s: s, z: z };
     }
 
     /* vignette + core glow set the room */
@@ -705,9 +756,10 @@
     });
 
     /* telemetry popups — real per-agent numbers surface and fade,
-       like tapping nodes on an ops console */
-    if (t > 0 && k > 0.45) {
-      if (t - popLast > 620) {
+       like tapping nodes on an ops console. They spawn on the wide
+       shot; the close-up dossiers take over once we're inside. */
+    if (t > 0 && k > 0.22) {
+      if (t - popLast > 620 && k < 0.4) {
         popLast = t; popN++;
         POPS.push({ i: AGENT_IDX[(popN * 11 + 5) % AGENT_IDX.length], t0: t, m: popN % 4 });
         if (POPS.length > 7) POPS.shift();
@@ -740,10 +792,75 @@
       g.globalAlpha = 1;
     }
 
+    /* dossier cards — the close-up holds pin a live card to the agent */
+    CLOSEUPS.forEach(function (cu, ci) {
+      var a = clamp((k - cu.d0) / 0.04) * (1 - clamp((k - (cu.d1 - 0.04)) / 0.04));
+      if (a <= 0.02) return;
+      var n = NODES3D[cu.i], p = P[cu.i];
+      if (!p) return;
+      var nR = n.r * p.s * 1.35;
+      var cw = 262, chh = 128;
+      var x = p.x + nR + 36;
+      if (x + cw > w - 16) x = p.x - nR - 36 - cw;
+      x = Math.max(16, Math.min(w - cw - 16, x));
+      var y = Math.max(52, Math.min(vh - chh - 40, p.y - chh / 2));
+      /* leader line node → card */
+      g.globalAlpha = a * 0.55;
+      g.strokeStyle = n.c; g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(p.x + (x > p.x ? nR : -nR), p.y);
+      g.lineTo(x > p.x ? x : x + cw, y + chh / 2);
+      g.stroke();
+      /* the card */
+      g.globalAlpha = a * 0.94;
+      g.fillStyle = 'rgba(8,9,12,0.94)';
+      g.fillRect(x, y, cw, chh);
+      g.strokeStyle = n.c; g.lineWidth = 1;
+      g.strokeRect(x + 0.5, y + 0.5, cw - 1, chh - 1);
+      g.fillStyle = n.c; g.fillRect(x, y, 2, chh);
+      g.textAlign = 'left';
+      g.fillStyle = '#ebe8e0';
+      g.font = '700 11px "Space Mono", monospace';
+      g.fillText(n.name + ' · ' + n.id, x + 12, y + 19);
+      g.textAlign = 'right';
+      g.fillStyle = n.c;
+      g.font = '700 8px "Space Mono", monospace';
+      g.fillText(cu.dept, x + cw - 10, y + 19);
+      g.textAlign = 'left';
+      g.fillStyle = '#8b887c';
+      g.font = '9px "Space Mono", monospace';
+      g.fillText('MODEL  ' + cu.model, x + 12, y + 37);
+      g.fillStyle = '#ebe8e0';
+      g.fillText('TASK   ' + cu.task, x + 12, y + 52);
+      /* live meters — numbers breathe so the card feels wired in */
+      var jl = n.lat * (1 + 0.05 * Math.sin(t * 0.0031 + ci * 2));
+      var jc = n.cost < 0.01 ? '<$0.01' : '$' + (n.cost * (1 + 0.03 * Math.sin(t * 0.0023))).toFixed(2);
+      g.fillStyle = '#8b887c';
+      g.fillText('P95 ' + fmtMs(jl) + ' · ' + jc + '/TASK · CACHE ' + Math.round(n.cache) + '%', x + 12, y + 68);
+      g.fillStyle = '#22c55e';
+      g.fillText(cu.tok, x + 12, y + 83);
+      /* autonomy blocks */
+      g.fillStyle = '#8b887c';
+      g.fillText('AUTONOMY', x + 12, y + 99);
+      for (var bi = 0; bi < 5; bi++) {
+        g.fillStyle = bi < cu.blocks ? n.c : 'rgba(139,136,124,0.25)';
+        g.fillRect(x + 76 + bi * 13, y + 92, 9, 7);
+      }
+      g.fillStyle = n.c;
+      g.fillText(cu.auto, x + 150, y + 99);
+      /* live activity bars along the card foot */
+      for (var ai = 0; ai < 26; ai++) {
+        var bh = 3 + 8 * Math.abs(Math.sin(ai * 1.7 + t * 0.004 + ci * 3));
+        g.fillStyle = 'rgba(235,232,224,' + (0.14 + 0.2 * (bh / 11)) + ')';
+        g.fillRect(x + 12 + ai * 9, y + chh - 10 - bh, 5, bh);
+      }
+      g.globalAlpha = 1;
+    });
+
     /* HUD — live totals up top, fleet-wide distributions + the token
-       bill down below. All numbers derive from the swarm itself. */
+       bill down below on the wide shot; captions narrate the dive. */
     var hud = clamp((k - 0.3) / 0.4);
-    var vh = Math.min(h, window.innerHeight);
+    var fleet = hud * (1 - clamp((k - 0.32) / 0.1)); // fleet boards yield to the dive
     if (hud > 0.02) {
       g.globalAlpha = hud;
       g.textAlign = 'left';
@@ -755,7 +872,10 @@
       g.font = '10px "Space Mono", monospace';
       var rate = 1180 + Math.round(160 * Math.sin(t * 0.0011));
       g.fillText('AGENTS ' + AGENT_IDX.length + ' · CHANNELS ' + EDGES3D.length + ' · MSGS ' + rate + '/S', w - 24, 34);
-
+      g.globalAlpha = 1;
+    }
+    if (fleet > 0.02) {
+      g.globalAlpha = fleet;
       /* fleet latency + cost distributions, bottom-left */
       g.textAlign = 'left';
       g.fillStyle = '#8b887c';
@@ -780,11 +900,22 @@
       g.fillRect(w - 174, vh - 26, 150, 3);
       g.fillStyle = '#22c55e';
       g.fillRect(w - 174, vh - 26, 150 * (billedM / rawM), 3);
-
+      g.globalAlpha = 1;
+    }
+    if (hud > 0.02) {
+      /* the dive narration, bottom-center */
+      var cap =
+        k < 0.32 ? 'BEHIND THE GLASS — EVERY DESK RUNS A HARNESS · EVERY AGENT IS METERED, VERIFIED, AND EARNS AUTONOMY'
+        : k < 0.47 ? 'ENTERING HARNESS · SECURITY — 5 AGENTS ON WATCH'
+        : k < 0.64 ? 'CLOSE-UP — CIPHER · LOCAL MODEL, <$0.01 A TASK, TRUSTED AUTONOMY'
+        : k < 0.71 ? 'CROSSING THE BACKPLANE → COVERAGE DESK'
+        : k < 0.92 ? 'CLOSE-UP — ORACLE · FRONTIER SPEND ONLY WHERE THE BLAST RADIUS EARNS IT'
+        : 'EVERY DESK, EVERY AGENT — ONE ALLOCATOR';
+      g.globalAlpha = hud;
       g.textAlign = 'center';
       g.fillStyle = '#8b887c';
       g.font = '10px "Space Mono", monospace';
-      g.fillText('BEHIND THE GLASS — EVERY DESK RUNS A HARNESS · EVERY AGENT IS METERED, VERIFIED, AND EARNS AUTONOMY', cx, vh - 8);
+      g.fillText(cap, cx, vh - 8);
       g.globalAlpha = 1;
     }
   }
@@ -818,15 +949,17 @@
     page2.style.top = (chromeBar.offsetHeight + cmdBar.offsetHeight) + 'px';
   }
 
-  /* ═══ master timeline — one scrubbed p drives all four acts ═══
-     0.00–0.12 laptop dolly · 0.13–0.60 order decomposes & routes ·
-     0.62–0.80 registry: IDs mint, token bill collapses ·
-     0.82–1.00 the screen swings open — the swarm backplane in 3D */
+  /* ═══ master timeline — one scrubbed p drives all the acts ═══
+     0.00–0.09 laptop dolly · 0.10–0.46 order decomposes & routes ·
+     0.48–0.62 registry: IDs mint, token bill collapses ·
+     0.64–1.00 behind the glass: wide swarm → into the SECURITY
+     harness → CIPHER close-up → across to the coverage desk →
+     ORACLE close-up → parting pull-back */
   function master(p) {
-    applyZoom(clamp(p / 0.12));
-    update(clamp((p - 0.13) / 0.47));
-    updateRegistry(clamp((p - 0.62) / 0.18));
-    updateDepth(clamp((p - 0.82) / 0.18));
+    applyZoom(clamp(p / 0.09));
+    update(clamp((p - 0.10) / 0.36));
+    updateRegistry(clamp((p - 0.48) / 0.14));
+    updateDepth(clamp((p - 0.64) / 0.36));
   }
 
   layoutPage2();
@@ -856,7 +989,7 @@
       trigger: stage,
       pin: true,
       start: 'top top',
-      end: '+=5300',
+      end: '+=8200',
       scrub: 0.5,
       anticipatePin: 1,
       onRefresh: function () { layoutPage2(); master(proxy.p); }
