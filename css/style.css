@@ -1001,3 +1001,8 @@ body.no-motion #rt-depth { display: none; }
 .rtp-debug #shift, .rtp-debug #gl, .rtp-debug #flow-canvas, .rtp-debug #gl-labels { display: none !important; }
 .rtp-debug #routing .eyebrow, .rtp-debug #routing .sec-h2, .rtp-debug #routing .sec-lede { display: none !important; }
 .rtp-debug .rterm-stage { margin-top: 0; }
+
+/* the scene wrapper is transparent — it must never eat clicks meant
+   for the backplane canvas beneath it; the laptop re-enables its own */
+.laptop-scene { pointer-events: none; }
+.laptop { pointer-events: auto; }

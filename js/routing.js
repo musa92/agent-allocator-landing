@@ -602,12 +602,19 @@
   /* ── clickable harnesses — hover highlights, click opens a live
      crew inspector pinned to the hub. Hit zones are rebuilt from the
      projected positions every frame, so they track the orbiting world. */
-  var hubHits = [], hoverNode = -1, selNode = -1;
+  var hubHits = [], edgeHits = [], hoverNode = -1, selNode = -1, hoverEdge = -1, selEdge = -1;
+  function segDist2(px, py, x1, y1, x2, y2) {
+    var vx = x2 - x1, vy = y2 - y1;
+    var len2 = vx * vx + vy * vy;
+    var u = len2 ? Math.max(0, Math.min(1, ((px - x1) * vx + (py - y1) * vy) / len2)) : 0;
+    var dx = px - (x1 + vx * u), dy = py - (y1 + vy * u);
+    return dx * dx + dy * dy;
+  }
   if (depthCanvas && !REDUCED) {
     depthCanvas.addEventListener('pointermove', function (e) {
       var rc = depthCanvas.getBoundingClientRect();
       var mx2 = e.clientX - rc.left, my2 = e.clientY - rc.top;
-      hoverNode = -1;
+      hoverNode = -1; hoverEdge = -1;
       var best = Infinity;
       for (var hi2 = 0; hi2 < hubHits.length; hi2++) {
         var hh = hubHits[hi2];
@@ -615,10 +622,26 @@
         var dd = dx * dx + dy * dy, rr = (hh.r + 12) * (hh.r + 12);
         if (dd < rr && dd < best) { best = dd; hoverNode = hh.i; }
       }
-      depthCanvas.style.cursor = hoverNode >= 0 ? 'pointer' : '';
+      if (hoverNode < 0) { /* nodes win; otherwise try the wires */
+        var bestE = 49; // within 7px of the line
+        for (var ei2 = 0; ei2 < edgeHits.length; ei2++) {
+          var eh = edgeHits[ei2];
+          var d2 = segDist2(mx2, my2, eh.x1, eh.y1, eh.x2, eh.y2);
+          if (d2 < bestE) { bestE = d2; hoverEdge = eh.ei; }
+        }
+      }
+      depthCanvas.style.cursor = (hoverNode >= 0 || hoverEdge >= 0) ? 'pointer' : '';
     });
     depthCanvas.addEventListener('click', function () {
-      selNode = hoverNode >= 0 ? (selNode === hoverNode ? -1 : hoverNode) : -1;
+      if (hoverNode >= 0) {
+        selNode = selNode === hoverNode ? -1 : hoverNode;
+        selEdge = -1;
+      } else if (hoverEdge >= 0) {
+        selEdge = selEdge === hoverEdge ? -1 : hoverEdge;
+        selNode = -1;
+      } else {
+        selNode = -1; selEdge = -1;
+      }
     });
   }
 
@@ -696,7 +719,7 @@
 
     var k = depthK;
     var t = REDUCED ? 0 : now;
-    hubHits.length = 0; // hit zones rebuilt from this frame's projection
+    hubHits.length = 0; edgeHits.length = 0; // hit zones rebuilt from this frame's projection
     /* step the orbits before the camera samples its target — close-up
        holds then track the moving agent */
     NODES3D.forEach(function (n) {
@@ -796,11 +819,13 @@
       var na = NODES3D[e[0]], nb = NODES3D[e[1]];
       var trunk = e[2] === 2;
       var depth = (a.s + b.s) / 2;
+      edgeHits.push({ ei: ei, x1: a.x, y1: a.y, x2: b.x, y2: b.y });
+      var lit = ei === hoverEdge || ei === selEdge;
       var lg = g.createLinearGradient(a.x, a.y, b.x, b.y);
       lg.addColorStop(0, na.c); lg.addColorStop(1, nb.c);
       g.strokeStyle = lg;
-      g.globalAlpha = ((trunk ? 0.26 : 0.14) + 0.26 * depth) * k;
-      g.lineWidth = (trunk ? 1.7 : 1.0) * depth;
+      g.globalAlpha = ((trunk ? 0.26 : 0.14) + 0.26 * depth + (lit ? 0.4 : 0)) * k;
+      g.lineWidth = (trunk ? 1.7 : 1.0) * depth + (lit ? 0.9 : 0);
       if (!trunk) {
         /* secondary channels are marching dotted lines — traffic direction */
         g.setLineDash([2.2 * depth + 0.6, 6.5 * depth + 2.5]);
@@ -1058,6 +1083,42 @@
       }
     }
 
+    /* clicked wire → channel panel: who talks to whom, how hot the
+       line runs, and the payload currently in flight */
+    if (selEdge >= 0) {
+      var se = EDGES3D[selEdge];
+      var sa2 = P[se[0]], sb2 = P[se[1]];
+      if (sa2 && sb2) {
+        var ena = NODES3D[se[0]], enb = NODES3D[se[1]];
+        var eTrunk = se[2] === 2;
+        var ew = 286, ehh = 78;
+        var ex = (sa2.x + sb2.x) / 2 + 18;
+        ex = Math.max(16, Math.min(w - ew - 16, ex));
+        var ey = Math.max(52, Math.min(vh - ehh - 40, (sa2.y + sb2.y) / 2 - ehh - 14));
+        var ehash = nameHash(ena.name + enb.name);
+        var erate = 24 + ehash % 160 + Math.round(9 * Math.sin(t * 0.0014 + selEdge));
+        var ecyc = Math.floor((t * 0.00022) + selEdge * 0.173);
+        g.globalAlpha = 0.95 * k;
+        g.fillStyle = 'rgba(8,9,12,0.95)';
+        g.fillRect(ex, ey, ew, ehh);
+        g.strokeStyle = enb.c; g.lineWidth = 1;
+        g.strokeRect(ex + 0.5, ey + 0.5, ew - 1, ehh - 1);
+        g.fillStyle = enb.c; g.fillRect(ex, ey, 2, ehh);
+        g.textAlign = 'left';
+        g.fillStyle = '#ebe8e0';
+        g.font = '700 10px "Space Mono", monospace';
+        g.fillText('CHANNEL · ' + ena.name + ' ⇄ ' + enb.name, ex + 12, ey + 18);
+        g.fillStyle = '#8b887c';
+        g.font = '8px "Space Mono", monospace';
+        g.fillText(ena.id + ' → ' + enb.id + (eTrunk ? ' · TRUNK LINE' : ' · PEER LINK'), ex + 12, ey + 33);
+        g.fillText('RATE ' + erate + ' MSG/S · ENC AES-256-GCM · QOS ' + (eTrunk ? 'P0' : 'P2'), ex + 12, ey + 48);
+        g.fillStyle = enb.c;
+        g.font = '700 8.5px "Space Mono", monospace';
+        g.fillText('IN FLIGHT  ' + MSGS3D[(selEdge * 3 + ecyc) % MSGS3D.length], ex + 12, ey + 64);
+        g.globalAlpha = 1;
+      }
+    }
+
     /* harness inspector — click a hub, meet the crew */
     if (selNode >= 0 && NODES3D[selNode].kind === 'hub') {
       var hn = NODES3D[selNode], hp3 = P[selNode];
@@ -1203,11 +1264,14 @@
     depthCanvas.style.opacity =
       (clamp(d * 1.8) * (1 - clamp((d - 0.95) / 0.05))).toFixed(3);
     depthCanvas.style.pointerEvents = d > 0.22 && d < 0.97 ? 'auto' : 'none';
+    /* page2's own pointer-events:auto would re-enable clicks inside the
+       flipped laptop and shadow the canvas — park it during the act */
+    if (page2) page2.style.pointerEvents = d > 0.2 ? 'none' : '';
     var on = d > 0.01;
     if (on && !depthOn) { depthOn = true; depthRAF = requestAnimationFrame(tickDepth); }
     else if (!on && depthOn) {
       depthOn = false;
-      selNode = -1; hoverNode = -1;
+      selNode = -1; hoverNode = -1; selEdge = -1; hoverEdge = -1;
       depthCanvas.style.cursor = '';
       if (depthRAF) cancelAnimationFrame(depthRAF);
       if (depthCtx) {
@@ -1256,6 +1320,8 @@
         if (n.kind === 'agent' && n.name === dbgAgent[1]) selNode = i;
       });
     }
+    var dbgEdge = /[?&]edge=(\d+)/.exec(location.search);
+    if (dbgEdge) selEdge = Math.min(EDGES3D.length - 1, parseInt(dbgEdge[1], 10));
     master(Math.min(1, parseFloat(dbg[1])));
     return;
   }
