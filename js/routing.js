@@ -462,21 +462,76 @@
   var depthCanvas = document.getElementById('rt-depth');
   var depthCtx = depthCanvas ? depthCanvas.getContext('2d') : null;
   var depthK = 0, depthOn = false, depthRAF = null;
-  var TIER3D = { open: '#22c55e', local: '#8b887c', frontier: '#22d3ee' };
-  var NODES3D = [
-    { id: 'CORE', role: 'ALLOCATOR', x: 0, y: 0, z: 0, r: 24, c: '#ffb400', hub: true },
-    { id: 'AGT-7F2E-01', role: 'INGEST', x: -300, y: -75, z: -60, r: 13, c: TIER3D.open },
-    { id: 'AGT-C41A-02', role: 'NORMALIZE', x: -165, y: 125, z: 145, r: 11, c: TIER3D.local },
-    { id: 'AGT-9D03-03', role: 'HISTORICALS', x: -35, y: -150, z: 45, r: 12, c: TIER3D.open },
-    { id: 'AGT-E88F-04', role: 'RESEARCH', x: 160, y: 95, z: -125, r: 15, c: TIER3D.frontier },
-    { id: 'AGT-52B7-05', role: 'VALUATION', x: 305, y: -60, z: 85, r: 15, c: TIER3D.frontier },
-    { id: 'AGT-B6C1-06', role: 'MEMO', x: 60, y: 175, z: -40, r: 12, c: TIER3D.open }
+  /* ── the company swarm — every department runs a harness, every
+     harness runs a crew of named agents. IDs are minted from the
+     agent's name (FNV-1a hash → hex), so names ARE identity. ── */
+  function nameHash(name) {
+    var h = 2166136261;
+    for (var i = 0; i < name.length; i++) {
+      h ^= name.charCodeAt(i);
+      h = (h * 16777619) >>> 0;
+    }
+    return h;
+  }
+  function nameId(name) {
+    return 'AGT-' + ('0000' + nameHash(name).toString(16).toUpperCase()).slice(-4);
+  }
+  /* per-dept telemetry ranges [latMs min,max · $/task min,max · cache% min,max] */
+  var DEPTS3D = [
+    { dept: 'COVERAGE DESK', c: '#22d3ee', pos: [330, -55, 70], lat: [1800, 9200], cost: [0.08, 4.1], cache: [58, 84],
+      crew: ['SCRIBE', 'JANITOR', 'MASON', 'ORACLE', 'ABACUS-PRIME', 'QUILL'] },
+    { dept: 'PAYROLL', c: '#22c55e', pos: [-320, 70, 110], lat: [420, 1900], cost: [0.01, 0.22], cache: [88, 97],
+      crew: ['TALLY', 'ESCROW', 'LEDGER', 'STIPEND', 'WITHHOLD'] },
+    { dept: 'SECURITY', c: '#ff5f57', pos: [-140, -160, -190], lat: [64, 310], cost: [0.004, 0.03], cache: [91, 99],
+      crew: ['SENTRY', 'CIPHER', 'WARDEN', 'TRIPWIRE', 'AEGIS'] },
+    { dept: 'LEGAL', c: '#a78bfa', pos: [180, 160, -170], lat: [2400, 11400], cost: [0.3, 2.9], cache: [49, 71],
+      crew: ['CLAUSE', 'VERDICT', 'BRIEF', 'REDLINE'] },
+    { dept: 'SUPPORT', c: '#f7a600', pos: [40, -185, 200], lat: [380, 1450], cost: [0.008, 0.09], cache: [86, 96],
+      crew: ['ECHO', 'TRIAGE', 'CONCIERGE', 'PATCH'] },
+    { dept: 'TREASURY', c: '#34d399', pos: [-90, 185, -60], lat: [900, 4200], cost: [0.05, 0.9], cache: [72, 90],
+      crew: ['BULLION', 'HEDGE', 'FLOAT'] },
+    { dept: 'INFRA OPS', c: '#8b887c', pos: [175, 65, 330], lat: [45, 220], cost: [0.001, 0.01], cache: [94, 99],
+      crew: ['SHUTTLE', 'DAEMON', 'SWEEPER', 'MIRROR'] }
   ];
-  /* channels: every agent reports to the core; work flows between peers */
-  var EDGES3D = [
-    [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6],
-    [1, 3], [2, 3], [3, 5], [4, 5], [5, 6], [1, 4], [4, 6]
-  ];
+  var NODES3D = [{ id: 'CORE', name: 'ALLOCATOR', x: 0, y: 0, z: 0, r: 24, c: '#ffb400', kind: 'core', ph: 0 }];
+  var EDGES3D = [];
+  DEPTS3D.forEach(function (d, dj) {
+    var hub = {
+      id: nameId(d.dept), name: d.dept, kind: 'hub', c: d.c, r: 15,
+      x: d.pos[0], y: d.pos[1], z: d.pos[2], ph: dj * 1.7
+    };
+    NODES3D.push(hub);
+    var hi = NODES3D.length - 1;
+    EDGES3D.push([0, hi, 2]); // trunk: core ↔ harness, double pulse
+    d.crew.forEach(function (nm, aj) {
+      var h = nameHash(nm);
+      /* the crew orbits its harness; position + telemetry both derive from the name */
+      var az = (aj / d.crew.length) * 6.2832 + (h % 100) / 100;
+      var el = ((h >> 8) % 100) / 100 - 0.5;
+      var rad = 88 + (h % 40);
+      var lerp = function (a, b, t) { return a + (b - a) * t; };
+      var u1 = ((h >> 4) % 1000) / 1000, u2 = ((h >> 12) % 1000) / 1000, u3 = ((h >> 6) % 1000) / 1000;
+      NODES3D.push({
+        id: nameId(nm), name: nm, kind: 'agent', c: d.c, r: 7.5 + (h % 4),
+        x: hub.x + Math.cos(az) * rad, y: hub.y + el * 95, z: hub.z + Math.sin(az) * rad,
+        ph: dj * 1.7 + aj,
+        lat: lerp(d.lat[0], d.lat[1], u1),
+        cost: lerp(d.cost[0], d.cost[1], u2),
+        cache: lerp(d.cache[0], d.cache[1], u3)
+      });
+      EDGES3D.push([hi, NODES3D.length - 1, 1]);
+    });
+  });
+  /* cross-desk audit & data channels — the swarm talks sideways too */
+  function findNode(nm) {
+    for (var i = 0; i < NODES3D.length; i++) if (NODES3D[i].name === nm) return i;
+    return 0;
+  }
+  [['SECURITY', 'PAYROLL'], ['COVERAGE DESK', 'LEGAL'], ['SUPPORT', 'COVERAGE DESK'],
+   ['INFRA OPS', 'SECURITY'], ['TREASURY', 'PAYROLL'], ['WARDEN', 'TALLY'],
+   ['CIPHER', 'ORACLE'], ['CLAUSE', 'QUILL']].forEach(function (pr) {
+    EDGES3D.push([findNode(pr[0]), findNode(pr[1]), 1]);
+  });
   var DUST3D = [];
   for (var di = 0; di < 90; di++) {
     var fr = function (n) { var v = Math.sin(n) * 43758.5453; return v - Math.floor(v); };
@@ -486,6 +541,27 @@
       z: (fr(di * 39.425) - 0.5) * 900
     });
   }
+  /* fleet telemetry: real distributions computed from the swarm itself */
+  var AGENT_IDX = [];
+  NODES3D.forEach(function (n, i) {
+    if (n.kind === 'agent') {
+      n.tokSave = 35 + (nameHash(n.name) >> 16) % 50;
+      AGENT_IDX.push(i);
+    }
+  });
+  function pct(arr, q) {
+    var s = arr.slice().sort(function (a, b) { return a - b; });
+    return s[Math.min(s.length - 1, Math.floor(q * s.length))];
+  }
+  var LATS = AGENT_IDX.map(function (i) { return NODES3D[i].lat; });
+  var COSTS = AGENT_IDX.map(function (i) { return NODES3D[i].cost; });
+  var LAT_P = [pct(LATS, 0.5), pct(LATS, 0.95), pct(LATS, 0.99)];
+  var COST_P = [pct(COSTS, 0.5), pct(COSTS, 0.95)];
+  function fmtMs(ms) {
+    return ms < 1000 ? Math.round(ms) + 'MS' : (ms / 1000).toFixed(1) + 'S';
+  }
+  var POPS = [], popLast = 0, popN = 0;
+
   function sizeDepth() {
     if (!depthCanvas) return;
     var dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -507,17 +583,19 @@
     var k = depthK;
     var ko = 1 - Math.pow(1 - k, 3); // easeOutCubic — dolly settles softly
     var t = REDUCED ? 0 : now;
-    var rotY = t * 0.00012 + 0.85 * (1 - ko);
-    var camZ = 820 - 700 * ko;
+    var rotY = t * 0.0001 + 0.85 * (1 - ko);
+    var camZ = 980 - 700 * ko; // settles wide enough to hold the whole company
     /* center in the visible viewport slice, not the (possibly taller) stage */
     var FOCAL = 640, cx = w / 2, cy = Math.min(h, window.innerHeight) / 2 - 14;
     var cosY = Math.cos(rotY), sinY = Math.sin(rotY);
     function proj(p) {
+      /* clusters breathe — each node bobs on its own phase */
+      var by = p.ph !== undefined ? Math.sin(t * 0.0006 + p.ph) * 7 : 0;
       var x = p.x * cosY + p.z * sinY;
       var z = -p.x * sinY + p.z * cosY;
       var s = FOCAL / (FOCAL + z + camZ);
       if (s <= 0.05) return null;
-      return { x: cx + x * s, y: cy + p.y * s, s: s, z: z };
+      return { x: cx + x * s, y: cy + (p.y + by) * s, s: s, z: z };
     }
 
     /* vignette + core glow set the room */
@@ -535,37 +613,39 @@
       g.fillRect(p.x, p.y, 1.4 * p.s + 0.4, 1.4 * p.s + 0.4);
     });
 
-    /* channels + pulses */
+    /* channels + pulses — trunks (core↔harness) run heavier and hotter */
     var P = NODES3D.map(proj);
     EDGES3D.forEach(function (e, ei) {
       var a = P[e[0]], b = P[e[1]];
       if (!a || !b) return;
       var na = NODES3D[e[0]], nb = NODES3D[e[1]];
+      var trunk = e[2] === 2;
       var depth = (a.s + b.s) / 2;
       var lg = g.createLinearGradient(a.x, a.y, b.x, b.y);
       lg.addColorStop(0, na.c); lg.addColorStop(1, nb.c);
       g.strokeStyle = lg;
-      g.globalAlpha = (0.18 + 0.3 * depth) * k;
-      g.lineWidth = 1.25 * depth;
+      g.globalAlpha = ((trunk ? 0.24 : 0.12) + 0.26 * depth) * k;
+      g.lineWidth = (trunk ? 1.7 : 1.0) * depth;
       g.beginPath(); g.moveTo(a.x, a.y); g.lineTo(b.x, b.y); g.stroke();
-      /* two pulses per channel, offset by edge index */
-      for (var j = 0; j < 2; j++) {
-        var pt = ((t * 0.00022) + j / 2 + ei * 0.173) % 1;
-        var px3 = {
+      var nPulse = trunk ? 3 : 1;
+      for (var j = 0; j < nPulse; j++) {
+        var pt = ((t * 0.00022) + j / nPulse + ei * 0.173) % 1;
+        var pp = proj({
           x: na.x + (nb.x - na.x) * pt,
           y: na.y + (nb.y - na.y) * pt,
           z: na.z + (nb.z - na.z) * pt
-        };
-        var pp = proj(px3);
+        });
         if (!pp) continue;
         g.globalAlpha = 0.85 * Math.sin(Math.PI * pt) * k;
         g.fillStyle = nb.c;
-        g.beginPath(); g.arc(pp.x, pp.y, 2 * pp.s, 0, 6.2832); g.fill();
+        g.beginPath(); g.arc(pp.x, pp.y, (trunk ? 2.4 : 1.8) * pp.s, 0, 6.2832); g.fill();
       }
     });
     g.globalAlpha = 1;
 
-    /* nodes — glow, core, ring, labels; painter's order back-to-front */
+    /* nodes — glow, core, ring, labels; painter's order back-to-front.
+       Hubs always carry name + minted ID; agents earn their label as
+       the camera (or the orbit) brings them close. */
     var order = NODES3D.map(function (n, i) { return i; })
       .sort(function (i, j) { return P[j] && P[i] ? P[j].z - P[i].z : 0; });
     order.forEach(function (i) {
@@ -574,50 +654,137 @@
       var r = n.r * p.s * 1.35;
       var glow = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 3.2);
       glow.addColorStop(0, n.c); glow.addColorStop(1, 'rgba(0,0,0,0)');
-      g.globalAlpha = 0.16 * k;
+      g.globalAlpha = (n.kind === 'agent' ? 0.12 : 0.18) * k;
       g.fillStyle = glow;
       g.beginPath(); g.arc(p.x, p.y, r * 3.2, 0, 6.2832); g.fill();
       g.globalAlpha = (0.35 + 0.6 * p.s) * k;
       g.fillStyle = '#08090c';
       g.beginPath(); g.arc(p.x, p.y, r, 0, 6.2832); g.fill();
-      g.strokeStyle = n.c; g.lineWidth = 1.3;
+      g.strokeStyle = n.c; g.lineWidth = n.kind === 'agent' ? 1.1 : 1.4;
       g.beginPath(); g.arc(p.x, p.y, r, 0, 6.2832); g.stroke();
       g.fillStyle = n.c;
-      g.beginPath(); g.arc(p.x, p.y, Math.max(1.6, r * 0.3), 0, 6.2832); g.fill();
-      if (n.hub) { /* breathing outer ring on the core */
+      g.beginPath(); g.arc(p.x, p.y, Math.max(1.4, r * 0.3), 0, 6.2832); g.fill();
+      if (n.kind === 'core') { /* breathing double ring on the core */
         g.globalAlpha = (0.25 + 0.2 * Math.sin(t * 0.002)) * k;
         g.beginPath(); g.arc(p.x, p.y, r * 1.7, 0, 6.2832); g.stroke();
+        g.globalAlpha = 0.12 * k;
+        g.beginPath(); g.arc(p.x, p.y, r * 2.3, 0, 6.2832); g.stroke();
       }
-      var la = clamp((k - 0.35) / 0.4) * (0.4 + 0.6 * p.s);
-      if (la > 0.02) {
-        g.globalAlpha = la;
-        g.textAlign = 'center';
-        g.fillStyle = n.hub ? '#ffb400' : '#ebe8e0';
-        g.font = '700 ' + Math.round(10 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
-        g.fillText(n.id, p.x, p.y + r + 15);
-        g.fillStyle = 'rgba(139,136,124,0.9)';
-        g.font = Math.round(8.5 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
-        g.fillText(n.role, p.x, p.y + r + 27);
+      var lk = clamp((k - 0.35) / 0.4);
+      if (n.kind === 'agent') {
+        /* close agents show their name; the very close also flash the ID */
+        var na2 = lk * clamp((p.s - 0.7) / 0.18);
+        if (na2 > 0.03) {
+          g.globalAlpha = na2 * 0.95;
+          g.textAlign = 'center';
+          g.fillStyle = '#ebe8e0';
+          g.font = '700 ' + Math.round(9 * (0.75 + p.s * 0.4)) + 'px "Space Mono", monospace';
+          g.fillText(n.name, p.x, p.y + r + 13);
+          var ia = na2 * clamp((p.s - 0.86) / 0.12);
+          if (ia > 0.03) {
+            g.globalAlpha = ia * 0.8;
+            g.fillStyle = n.c;
+            g.font = Math.round(7.5 * (0.75 + p.s * 0.4)) + 'px "Space Mono", monospace';
+            g.fillText(n.id, p.x, p.y + r + 24);
+          }
+        }
+      } else {
+        var la = lk * (0.5 + 0.5 * p.s);
+        if (la > 0.02) {
+          g.globalAlpha = la;
+          g.textAlign = 'center';
+          g.fillStyle = n.kind === 'core' ? '#ffb400' : n.c;
+          g.font = '700 ' + Math.round(10.5 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
+          g.fillText(n.kind === 'core' ? 'ALLOCATOR CORE' : 'HARNESS · ' + n.name, p.x, p.y + r + 16);
+          g.fillStyle = 'rgba(139,136,124,0.9)';
+          g.font = Math.round(8.5 * (0.7 + p.s * 0.5)) + 'px "Space Mono", monospace';
+          g.fillText(n.kind === 'core' ? 'CAPITAL · VERIFICATION · AUTONOMY' : n.id, p.x, p.y + r + 28);
+        }
       }
       g.globalAlpha = 1;
     });
 
-    /* HUD */
+    /* telemetry popups — real per-agent numbers surface and fade,
+       like tapping nodes on an ops console */
+    if (t > 0 && k > 0.45) {
+      if (t - popLast > 620) {
+        popLast = t; popN++;
+        POPS.push({ i: AGENT_IDX[(popN * 11 + 5) % AGENT_IDX.length], t0: t, m: popN % 4 });
+        if (POPS.length > 7) POPS.shift();
+      }
+      POPS.forEach(function (pop) {
+        var lt = (t - pop.t0) / 2100;
+        if (lt >= 1) return;
+        var n = NODES3D[pop.i], p = P[pop.i];
+        if (!p) return;
+        var a = Math.sin(Math.PI * lt) * k;
+        var r = n.r * p.s * 1.35;
+        var ty = p.y - r - 10 - 16 * lt;
+        var msg = pop.m === 0 ? 'P95 ' + fmtMs(n.lat)
+          : pop.m === 1 ? (n.cost < 0.01 ? '<$0.01' : '$' + n.cost.toFixed(2)) + '/TASK'
+          : pop.m === 2 ? 'CACHE ' + Math.round(n.cache) + '%'
+          : 'TOK −' + n.tokSave + '%';
+        g.globalAlpha = a * 0.5;
+        g.strokeStyle = n.c; g.lineWidth = 1;
+        g.beginPath(); g.moveTo(p.x, p.y - r - 2); g.lineTo(p.x, ty + 3); g.stroke();
+        g.globalAlpha = a;
+        g.textAlign = 'center';
+        g.fillStyle = n.c;
+        g.font = '700 10px "Space Mono", monospace';
+        g.fillText(msg, p.x, ty);
+        g.globalAlpha = a * 0.75;
+        g.fillStyle = '#8b887c';
+        g.font = '7.5px "Space Mono", monospace';
+        g.fillText(n.name, p.x, ty - 11);
+      });
+      g.globalAlpha = 1;
+    }
+
+    /* HUD — live totals up top, fleet-wide distributions + the token
+       bill down below. All numbers derive from the swarm itself. */
     var hud = clamp((k - 0.3) / 0.4);
+    var vh = Math.min(h, window.innerHeight);
     if (hud > 0.02) {
       g.globalAlpha = hud;
       g.textAlign = 'left';
       g.fillStyle = '#ffb400';
       g.font = '700 11px "Space Mono", monospace';
-      g.fillText('BKPL <GO> — SWARM BACKPLANE · LIVE TOPOLOGY', 24, 34);
+      g.fillText('BKPL <GO> — SWARM BACKPLANE · ' + DEPTS3D.length + ' HARNESSES · LIVE TOPOLOGY', 24, 34);
       g.textAlign = 'right';
       g.fillStyle = '#8b887c';
       g.font = '10px "Space Mono", monospace';
-      var rate = 220 + Math.round(40 * Math.sin(t * 0.0011));
-      g.fillText('AGENTS 6 · CHANNELS ' + (EDGES3D.length - 6) + ' · CORE LINKS 6 · MSGS ' + rate + '/S', w - 24, 34);
+      var rate = 1180 + Math.round(160 * Math.sin(t * 0.0011));
+      g.fillText('AGENTS ' + AGENT_IDX.length + ' · CHANNELS ' + EDGES3D.length + ' · MSGS ' + rate + '/S', w - 24, 34);
+
+      /* fleet latency + cost distributions, bottom-left */
+      g.textAlign = 'left';
+      g.fillStyle = '#8b887c';
+      g.font = '9.5px "Space Mono", monospace';
+      g.fillText('FLEET LATENCY   P50 ' + fmtMs(LAT_P[0]) + ' · P95 ' + fmtMs(LAT_P[1]) + ' · P99 ' + fmtMs(LAT_P[2]), 24, vh - 52);
+      g.fillText('COST / TASK     P50 $' + COST_P[0].toFixed(2) + ' · P95 $' + COST_P[1].toFixed(2), 24, vh - 38);
+      g.fillText('AUTONOMY MIX    TRUSTED 38% · SUPERVISED 47% · PROBATION 15%', 24, vh - 24);
+
+      /* the token bill, bottom-right — the whole point of the machine */
+      var be = 1 - Math.pow(1 - hud, 3);
+      var rawM = 38.2, billedM = rawM - (rawM - 14.9) * be;
+      g.textAlign = 'right';
+      g.fillStyle = '#8b887c';
+      g.fillText('TOKEN BILL TODAY', w - 24, vh - 66);
+      g.fillStyle = '#ebe8e0';
+      g.font = '700 13px "Space Mono", monospace';
+      g.fillText(rawM.toFixed(1) + 'M RAW → ' + billedM.toFixed(1) + 'M BILLED', w - 24, vh - 48);
+      g.fillStyle = '#22c55e';
+      g.font = '700 10px "Space Mono", monospace';
+      g.fillText('−' + Math.round((1 - billedM / rawM) * 100) + '% · CACHE + DEDUP + ROUTING', w - 24, vh - 33);
+      g.fillStyle = 'rgba(139,136,124,0.35)';
+      g.fillRect(w - 174, vh - 26, 150, 3);
+      g.fillStyle = '#22c55e';
+      g.fillRect(w - 174, vh - 26, 150 * (billedM / rawM), 3);
+
       g.textAlign = 'center';
-      g.fillText('BEHIND THE GLASS — AGENTS NEGOTIATE CONTEXT · BUDGET · VERIFICATION OVER THE BACKPLANE',
-        cx, Math.min(h, window.innerHeight) - 22);
+      g.fillStyle = '#8b887c';
+      g.font = '10px "Space Mono", monospace';
+      g.fillText('BEHIND THE GLASS — EVERY DESK RUNS A HARNESS · EVERY AGENT IS METERED, VERIFIED, AND EARNS AUTONOMY', cx, vh - 8);
       g.globalAlpha = 1;
     }
   }
