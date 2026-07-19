@@ -516,6 +516,10 @@
       NODES3D.push({
         id: nameId(nm), name: nm, kind: 'agent', c: d.c, r: 7.5 + (h % 4),
         x: hub.x + Math.cos(az) * rad, y: hub.y + el * 95, z: hub.z + Math.sin(az) * rad,
+        /* real orbital motion — each agent circles its harness at a
+           name-seeded speed and direction */
+        hubX: hub.x, hubZ: hub.z, az0: az, rad: rad,
+        spd: (h & 1 ? 1 : -1) * (0.4 + ((h >>> 10) % 60) / 60) * 0.000028,
         ph: dj * 1.7 + aj,
         lat: lerp(d.lat[0], d.lat[1], u1),
         cost: lerp(d.cost[0], d.cost[1], u2),
@@ -638,6 +642,14 @@
 
     var k = depthK;
     var t = REDUCED ? 0 : now;
+    /* step the orbits before the camera samples its target — close-up
+       holds then track the moving agent */
+    NODES3D.forEach(function (n) {
+      if (n.kind !== 'agent') return;
+      var az = n.az0 + t * n.spd;
+      n.x = n.hubX + Math.cos(az) * n.rad;
+      n.z = n.hubZ + Math.sin(az) * n.rad;
+    });
     var cam = camAt(k);
     /* the world orbit damps as we get inside a harness — the camera then
        slow-orbits the focal agent instead of spinning the whole room */
@@ -670,13 +682,56 @@
     g.fillStyle = vg;
     g.fillRect(0, 0, w, h);
 
-    /* dust — depth parallax */
-    DUST3D.forEach(function (d) {
+    /* the floor — a faint perspective grid grounds the room in 3D */
+    var gk = 0.055 * k * clamp((k - 0.08) / 0.15);
+    if (gk > 0.003) {
+      g.strokeStyle = '#8b887c';
+      g.lineWidth = 0.7;
+      for (var gi = -4; gi <= 4; gi++) {
+        var q = gi * 200;
+        var e1 = proj({ x: -800, y: 268, z: q }), e2 = proj({ x: 800, y: 268, z: q });
+        if (e1 && e2) {
+          g.globalAlpha = gk * (0.4 + 0.6 * Math.min(e1.s, e2.s));
+          g.beginPath(); g.moveTo(e1.x, e1.y); g.lineTo(e2.x, e2.y); g.stroke();
+        }
+        var f1 = proj({ x: q, y: 268, z: -800 }), f2 = proj({ x: q, y: 268, z: 800 });
+        if (f1 && f2) {
+          g.globalAlpha = gk * (0.4 + 0.6 * Math.min(f1.s, f2.s));
+          g.beginPath(); g.moveTo(f1.x, f1.y); g.lineTo(f2.x, f2.y); g.stroke();
+        }
+      }
+      g.globalAlpha = 1;
+    }
+
+    /* dust — depth parallax with a slow twinkle */
+    DUST3D.forEach(function (d, di2) {
       var p = proj(d);
       if (!p) return;
-      g.fillStyle = 'rgba(235,232,224,' + (0.14 * p.s * k).toFixed(3) + ')';
+      var tw = 0.55 + 0.45 * Math.sin(t * 0.003 + di2 * 1.9);
+      g.fillStyle = 'rgba(235,232,224,' + (0.14 * p.s * k * tw).toFixed(3) + ')';
       g.fillRect(p.x, p.y, 1.4 * p.s + 0.4, 1.4 * p.s + 0.4);
     });
+
+    /* orbit rings — every harness wears its crew's orbit in its color */
+    NODES3D.forEach(function (n) {
+      if (n.kind !== 'hub') return;
+      var hp = proj(n);
+      if (!hp) return;
+      g.strokeStyle = n.c;
+      g.lineWidth = 0.8;
+      g.beginPath();
+      var pr = null;
+      for (var si = 0; si <= 30; si++) {
+        var ang = si / 30 * 6.2832;
+        var rp = proj({ x: n.x + Math.cos(ang) * 108, y: n.y, z: n.z + Math.sin(ang) * 108 });
+        if (!rp) { pr = null; continue; }
+        if (pr) g.lineTo(rp.x, rp.y); else g.moveTo(rp.x, rp.y);
+        pr = rp;
+      }
+      g.globalAlpha = (0.05 + 0.1 * hp.s) * k;
+      g.stroke();
+    });
+    g.globalAlpha = 1;
 
     /* channels + pulses — trunks (core↔harness) run heavier and hotter */
     var P = NODES3D.map(proj);
@@ -748,11 +803,16 @@
       g.beginPath(); g.arc(p.x, p.y, r, 0, 6.2832); g.stroke();
       g.fillStyle = n.c;
       g.beginPath(); g.arc(p.x, p.y, Math.max(1.4, r * 0.3), 0, 6.2832); g.fill();
-      if (n.kind === 'core') { /* breathing double ring on the core */
+      if (n.kind === 'core') { /* breathing double ring + radar sweep on the core */
         g.globalAlpha = (0.25 + 0.2 * Math.sin(t * 0.002)) * k;
         g.beginPath(); g.arc(p.x, p.y, r * 1.7, 0, 6.2832); g.stroke();
         g.globalAlpha = 0.12 * k;
         g.beginPath(); g.arc(p.x, p.y, r * 2.3, 0, 6.2832); g.stroke();
+        var sa = t * 0.0012;
+        g.globalAlpha = 0.4 * k;
+        g.lineWidth = 1.5;
+        g.beginPath(); g.arc(p.x, p.y, r * 2.0, sa, sa + 0.85); g.stroke();
+        g.lineWidth = 1.4;
       }
       var lk = clamp((k - 0.35) / 0.4);
       if (n.kind === 'agent') {
@@ -850,6 +910,12 @@
       var n = NODES3D[cu.i], p = P[cu.i];
       if (!p) return;
       var nR = n.r * p.s * 1.35;
+      /* sonar ping — the agent under the lens announces itself */
+      var ping = (t % 1600) / 1600;
+      g.globalAlpha = a * (1 - ping) * 0.5;
+      g.strokeStyle = n.c;
+      g.lineWidth = 1.2;
+      g.beginPath(); g.arc(p.x, p.y, nR + ping * 46 * p.s, 0, 6.2832); g.stroke();
       var cw = 262, chh = 128;
       var x = p.x + nR + 36;
       if (x + cw > w - 16) x = p.x - nR - 36 - cw;
