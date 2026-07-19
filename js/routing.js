@@ -463,6 +463,8 @@
      the screen swings open. Scrub drives the dolly, time drives life. */
   var depthCanvas = document.getElementById('rt-depth');
   var depthCtx = depthCanvas ? depthCanvas.getContext('2d') : null;
+  var chipCanvas = document.getElementById('rt-chips');
+  var chipCtx = chipCanvas ? chipCanvas.getContext('2d') : null;
   var depthK = 0, depthOn = false, depthRAF = null;
   /* ── the company swarm — every department runs a harness, every
      harness runs a crew of named agents. IDs are minted from the
@@ -720,6 +722,10 @@
       depthCanvas.width = w * dpr; depthCanvas.height = h * dpr;
       depthCanvas.style.width = w + 'px'; depthCanvas.style.height = h + 'px';
     }
+    if (chipCanvas && chipCanvas.width !== (w * dpr | 0)) {
+      chipCanvas.width = w * dpr; chipCanvas.height = h * dpr;
+      chipCanvas.style.width = w + 'px'; chipCanvas.style.height = h + 'px';
+    }
   }
   function drawDepth(now) {
     if (!depthCtx) return;
@@ -965,71 +971,77 @@
        fly curved paths onto their coverage-desk agents. Source anchors
        track the live DOM rows (mid door-swing), targets track the
        orbiting nodes, so both ends of every flight are alive. */
-    if (k > 0.1 && k < 0.48 && agents.length) {
-      var cRect = depthCanvas.getBoundingClientRect();
-      CHIPS3D.forEach(function (ch, ci2) {
-        var u = (k - (0.12 + ci2 * 0.022)) / 0.16;
-        if (u <= 0 || u > 1.3) return;
-        var tp = P[ch.i];
-        if (!tp) return;
-        var uu = Math.min(1, u);
-        var e2 = uu * uu * (3 - 2 * uu);
-        var sx = w * 0.3, sy = vh * (0.25 + ci2 * 0.1);
-        var row = agents[ci2];
-        if (row) {
-          var rr2 = row.getBoundingClientRect();
-          if (rr2.width) {
-            sx = rr2.left + rr2.width * 0.5 - cRect.left;
-            sy = rr2.top + rr2.height * 0.5 - cRect.top;
+    if (chipCtx) {
+      var gc = chipCtx;
+      gc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      gc.clearRect(0, 0, w, h);
+      if (k > 0.03 && k < 0.48 && agents.length) {
+        var cRect = depthCanvas.getBoundingClientRect();
+        CHIPS3D.forEach(function (ch, ci2) {
+          var u = (k - (0.05 + ci2 * 0.024)) / 0.17;
+          if (u <= 0 || u > 1.3) return;
+          var tp = P[ch.i];
+          if (!tp) return;
+          var uu = Math.min(1, u);
+          var e2 = uu * uu * (3 - 2 * uu);
+          var sx = w * 0.3, sy = vh * (0.25 + ci2 * 0.1);
+          var row = agents[ci2];
+          if (row) {
+            var rr2 = row.getBoundingClientRect();
+            if (rr2.width) {
+              sx = rr2.left + rr2.width * 0.5 - cRect.left;
+              sy = rr2.top + rr2.height * 0.5 - cRect.top;
+            }
           }
-        }
-        /* quadratic arc with alternating sweep, easing home */
-        var mxx = (sx + tp.x) / 2 + ((ci2 % 2) ? 1 : -1) * (90 + ci2 * 26);
-        var myy = (sy + tp.y) / 2 - 80;
-        var i1 = 1 - e2;
-        var bx = i1 * i1 * sx + 2 * i1 * e2 * mxx + e2 * e2 * tp.x;
-        var by = i1 * i1 * sy + 2 * i1 * e2 * myy + e2 * e2 * tp.y;
-        var sc = 1 - 0.62 * e2;
-        var al = (uu < 0.06 ? uu / 0.06 : 1) * (uu > 0.9 ? (1 - uu) / 0.1 : 1);
-        if (al > 0.02) {
-          var cwp = 150 * sc, chp = 30 * sc;
-          /* motion streak behind the packet */
-          g.globalAlpha = al * 0.3;
-          g.strokeStyle = ch.c; g.lineWidth = 1.4 * sc;
-          g.beginPath();
-          g.moveTo(bx - (tp.x - sx) * 0.045, by - (tp.y - sy) * 0.045);
-          g.lineTo(bx, by);
-          g.stroke();
-          /* the chip — a cut-out slice of the registry row */
-          g.globalAlpha = al * 0.95;
-          g.fillStyle = 'rgba(8,9,12,0.95)';
-          g.fillRect(bx - cwp / 2, by - chp / 2, cwp, chp);
-          g.strokeStyle = ch.c; g.lineWidth = 1;
-          g.strokeRect(bx - cwp / 2 + 0.5, by - chp / 2 + 0.5, cwp - 1, chp - 1);
-          g.fillStyle = ch.c;
-          g.fillRect(bx - cwp / 2, by - chp / 2, 2, chp);
-          if (sc > 0.48) {
-            g.textAlign = 'left';
-            g.fillStyle = '#ebe8e0';
-            g.font = '700 ' + Math.max(6.5, 9 * sc).toFixed(1) + 'px "Space Mono", monospace';
-            g.fillText(ch.l, bx - cwp / 2 + 8 * sc, by - 2 * sc);
-            g.fillStyle = '#8b887c';
-            g.font = Math.max(6, 7.5 * sc).toFixed(1) + 'px "Space Mono", monospace';
-            g.fillText(ch.s, bx - cwp / 2 + 8 * sc, by + 9 * sc);
+          /* high quadratic arc — the packets fly OVER the swarm, not
+             through it, with alternating sweep */
+          var mxx = (sx + tp.x) / 2 + ((ci2 % 2) ? 1 : -1) * (110 + ci2 * 28);
+          var myy = Math.min(sy, tp.y) - 130 - ci2 * 16;
+          var i1 = 1 - e2;
+          var bx = i1 * i1 * sx + 2 * i1 * e2 * mxx + e2 * e2 * tp.x;
+          var by = i1 * i1 * sy + 2 * i1 * e2 * myy + e2 * e2 * tp.y;
+          var sc = 1 - 0.62 * e2;
+          var al = (uu < 0.06 ? uu / 0.06 : 1) * (uu > 0.9 ? (1 - uu) / 0.1 : 1);
+          if (al > 0.02) {
+            var cwp = 150 * sc, chp = 30 * sc;
+            /* motion streak behind the packet */
+            gc.globalAlpha = al * 0.3;
+            gc.strokeStyle = ch.c; gc.lineWidth = 1.4 * sc;
+            gc.beginPath();
+            gc.moveTo(bx - (tp.x - sx) * 0.045, by - (tp.y - sy) * 0.045);
+            gc.lineTo(bx, by);
+            gc.stroke();
+            /* the chip — a cut-out slice of the registry row */
+            gc.globalAlpha = al * 0.95;
+            gc.fillStyle = 'rgba(8,9,12,0.95)';
+            gc.fillRect(bx - cwp / 2, by - chp / 2, cwp, chp);
+            gc.strokeStyle = ch.c; gc.lineWidth = 1;
+            gc.strokeRect(bx - cwp / 2 + 0.5, by - chp / 2 + 0.5, cwp - 1, chp - 1);
+            gc.fillStyle = ch.c;
+            gc.fillRect(bx - cwp / 2, by - chp / 2, 2, chp);
+            if (sc > 0.48) {
+              gc.textAlign = 'left';
+              gc.fillStyle = '#ebe8e0';
+              gc.font = '700 ' + Math.max(6.5, 9 * sc).toFixed(1) + 'px "Space Mono", monospace';
+              gc.fillText(ch.l, bx - cwp / 2 + 8 * sc, by - 2 * sc);
+              gc.fillStyle = '#8b887c';
+              gc.font = Math.max(6, 7.5 * sc).toFixed(1) + 'px "Space Mono", monospace';
+              gc.fillText(ch.s, bx - cwp / 2 + 8 * sc, by + 9 * sc);
+            }
           }
-        }
-        /* landing flash — the agent absorbs the packet */
-        if (u > 0.86) {
-          var fl = Math.min(1, (u - 0.86) / 0.34);
-          g.globalAlpha = (1 - fl) * 0.85;
-          g.strokeStyle = ch.c; g.lineWidth = 1.6;
-          g.beginPath(); g.arc(tp.x, tp.y, 6 + fl * 34, 0, 6.2832); g.stroke();
-          g.globalAlpha = (1 - fl) * 0.35;
-          g.fillStyle = ch.c;
-          g.beginPath(); g.arc(tp.x, tp.y, 5 + fl * 12, 0, 6.2832); g.fill();
-        }
-        g.globalAlpha = 1;
-      });
+          /* landing flash — the agent absorbs the packet */
+          if (u > 0.86) {
+            var fl = Math.min(1, (u - 0.86) / 0.34);
+            gc.globalAlpha = (1 - fl) * 0.85;
+            gc.strokeStyle = ch.c; gc.lineWidth = 1.6;
+            gc.beginPath(); gc.arc(tp.x, tp.y, 6 + fl * 34, 0, 6.2832); gc.stroke();
+            gc.globalAlpha = (1 - fl) * 0.35;
+            gc.fillStyle = ch.c;
+            gc.beginPath(); gc.arc(tp.x, tp.y, 5 + fl * 12, 0, 6.2832); gc.fill();
+          }
+          gc.globalAlpha = 1;
+        });
+      }
     }
 
     /* telemetry popups — real per-agent numbers surface and fade,
@@ -1363,6 +1375,10 @@
       if (depthCtx) {
         depthCtx.setTransform(1, 0, 0, 1, 0, 0);
         depthCtx.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
+      }
+      if (chipCtx) {
+        chipCtx.setTransform(1, 0, 0, 1, 0, 0);
+        chipCtx.clearRect(0, 0, chipCanvas.width, chipCanvas.height);
       }
     }
   }

@@ -1006,3 +1006,5 @@ body.no-motion #rt-depth { display: none; }
    for the backplane canvas beneath it; the laptop re-enables its own */
 .laptop-scene { pointer-events: none; }
 .laptop { pointer-events: auto; }
+#rt-chips { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+body.no-motion #rt-chips { display: none; }
