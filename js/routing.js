@@ -704,7 +704,11 @@
     { l: '05 DCF & WACC', s: '260K TOK', c: '#22d3ee', m: 'FABLE 5 + VER', tgt: 'ABACUS-PRIME' },
     { l: '06 MEMO + AUDIT', s: '120K TOK', c: '#22c55e', m: 'DSK + AUDIT', tgt: 'QUILL' }
   ];
-  CHIPS3D.forEach(function (c) { c.i = findNode(c.tgt); });
+  CHIPS3D.forEach(function (c) {
+    c.i = findNode(c.tgt);
+    /* tasks are identities too — a TSK id minted from the task name */
+    c.tid = 'TSK-' + ('0000' + nameHash(c.l).toString(16).toUpperCase()).slice(-4);
+  });
   var COVHUB3D = findNode('COVERAGE DESK');
 
   /* real traffic riding the wires — a pulse picks a new message each lap */
@@ -1032,6 +1036,12 @@
             gc.fillStyle = '#8b887c';
             gc.font = '7px "Space Mono", monospace';
             gc.fillText(ch.s, ox2 + 62, ry3 + 9);
+            /* the minted ID badge — the task's passport on the rail */
+            gc.strokeStyle = 'rgba(255,180,0,0.45)';
+            gc.strokeRect(ox2 + 20.5, ry3 + 25.5, 62, 13);
+            gc.fillStyle = '#c9a24a';
+            gc.font = '700 6.5px "Space Mono", monospace';
+            gc.fillText(ch.tid, ox2 + 26, ry3 + 34.5);
             gc.globalAlpha = 1;
           }
           /* stage 2 — the model badge snaps in and wires to its ID */
@@ -1136,7 +1146,7 @@
               gc.fillText(ch.l, -cwp / 2 + 8 * sc, -2 * sc);
               gc.fillStyle = '#8b887c';
               gc.font = Math.max(6, 7.5 * sc).toFixed(1) + 'px "Space Mono", monospace';
-              gc.fillText(ch.s, -cwp / 2 + 8 * sc, 9 * sc);
+              gc.fillText(ch.s + ' · ' + ch.tid, -cwp / 2 + 8 * sc, 9 * sc);
             }
             gc.restore();
           }
@@ -1161,7 +1171,7 @@
             gc.globalAlpha = Math.sin(Math.PI * pu) * 0.65;
             gc.fillStyle = '#8b887c';
             gc.font = '7px "Space Mono", monospace';
-            gc.fillText(NODES3D[ch.i].id + ' ← T-0' + (ci2 + 1) + ' · ' + ch.m, tp.x, tp.y - 34);
+            gc.fillText(NODES3D[ch.i].id + ' ← ' + ch.tid + ' · ' + ch.m, tp.x, tp.y - 34);
             gc.fillStyle = '#22c55e';
             gc.font = '700 7.5px "Space Mono", monospace';
             var hp4 = P[COVHUB3D];
